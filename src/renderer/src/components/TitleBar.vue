@@ -9,9 +9,13 @@
           <rect x="2" y="6" width="8" height="1" fill="currentColor" />
         </svg>
       </button>
-      <button class="title-bar-button maximize" @click="maximize" title="最大化/还原">
-        <svg width="12" height="12" viewBox="0 0 12 12">
+      <button class="title-bar-button maximize" @click="maximize" :title="isMaximized ? '还原' : '最大化'">
+        <svg v-if="!isMaximized" width="12" height="12" viewBox="0 0 12 12">
           <rect x="2" y="2" width="8" height="8" stroke="currentColor" stroke-width="1" fill="none" />
+        </svg>
+        <svg v-else width="12" height="12" viewBox="0 0 12 12">
+          <rect x="2" y="3" width="6" height="6" stroke="currentColor" stroke-width="1" fill="none" />
+          <rect x="4" y="2" width="6" height="6" stroke="currentColor" stroke-width="1" fill="none" />
         </svg>
       </button>
       <button class="title-bar-button close" @click="close" title="关闭">
@@ -24,6 +28,10 @@
 </template>
 
 <script setup lang="ts">
+import { ref, onMounted, onUnmounted } from 'vue'
+
+const isMaximized = ref(false)
+
 const minimize = () => {
   window.api.windowControls.minimize()
 }
@@ -35,6 +43,22 @@ const maximize = () => {
 const close = () => {
   window.api.windowControls.close()
 }
+
+const updateMaximizeState = async () => {
+  isMaximized.value = await window.api.windowControls.isMaximized()
+}
+
+onMounted(async () => {
+  await updateMaximizeState()
+  
+  window.api.windowControls.onMaximizedChange((maximized: boolean) => {
+    isMaximized.value = maximized
+  })
+})
+
+onUnmounted(() => {
+  window.api.windowControls.removeMaximizedListener()
+})
 </script>
 
 <style scoped>

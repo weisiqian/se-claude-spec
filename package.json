@@ -24,8 +24,10 @@
     "@electron-toolkit/preload": "^3.0.2",
     "@electron-toolkit/utils": "^4.0.0",
     "@element-plus/icons-vue": "^2.3.2",
+    "@monaco-editor/loader": "^1.5.0",
     "electron-updater": "^6.3.9",
-    "element-plus": "^2.10.5"
+    "element-plus": "^2.10.5",
+    "monaco-editor": "^0.52.2"
   },
   "devDependencies": {
     "@electron-toolkit/eslint-config-prettier": "3.0.0",
@@ -38,9 +40,11 @@
     "electron-vite": "^4.0.0",
     "eslint": "^9.31.0",
     "eslint-plugin-vue": "^10.3.0",
+    "playwright": "^1.54.2",
     "prettier": "^3.6.2",
     "typescript": "^5.8.3",
     "vite": "^7.0.5",
+    "vite-plugin-monaco-editor": "^1.1.0",
     "vue": "^3.5.17",
     "vue-eslint-parser": "^10.2.0",
     "vue-tsc": "^3.0.3"

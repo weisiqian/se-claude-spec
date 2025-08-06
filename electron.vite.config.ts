@@ -15,6 +15,20 @@ export default defineConfig({
         '@renderer': resolve('src/renderer/src')
       }
     },
-    plugins: [vue()]
+    plugins: [vue()],
+    optimizeDeps: {
+      include: [
+        'monaco-editor/esm/vs/editor/editor.api'
+      ]
+    },
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            'monaco-editor': ['monaco-editor']
+          }
+        }
+      }
+    }
   }
 })

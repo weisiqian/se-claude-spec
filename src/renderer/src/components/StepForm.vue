@@ -33,12 +33,11 @@
             <span class="label-hint">请详细描述您的项目需求</span>
           </div>
           <div class="input-wrapper">
-            <el-input
+            <MonacoEditor
               v-model="formData.requirements.userRequirement"
-              type="textarea"
-              :rows="6"
+              language="markdown"
+              :height="150"
               placeholder="例如：我需要一个在线商城系统，支持商品管理、订单管理、用户管理等功能..."
-              resize="none"
             />
           </div>
         </div>
@@ -47,15 +46,14 @@
         <div class="input-group">
           <div class="input-label">
             <span class="label-text">提示词</span>
-            <span class="label-hint">{{ activeStep === 0 ? '补充分析要求（可选）' : '描述您的需求和期望' }}</span>
+            <span class="label-hint">可以修改默认提示词以满足特定需求</span>
           </div>
           <div class="input-wrapper">
-            <el-input
+            <MonacoEditor
               v-model="getCurrentFormData().prompt"
-              type="textarea"
-              :rows="activeStep === 0 ? 4 : 8"
-              :placeholder="activeStep === 0 ? '例如：请重点分析性能需求和安全需求...' : '在这里输入提示词...'"
-              resize="none"
+              language="markdown"
+              :height="activeStep === 0 ? 120 : 150"
+              placeholder="在这里输入提示词..."
             />
           </div>
         </div>
@@ -64,15 +62,14 @@
         <div class="input-group">
           <div class="input-label">
             <span class="label-text">JSON Schema</span>
-            <span class="label-hint">定义输出格式（可选）</span>
+            <span class="label-hint">定义输出的结构化数据格式</span>
           </div>
           <div class="input-wrapper">
-            <el-input
+            <MonacoEditor
               v-model="getCurrentFormData().schema"
-              type="textarea"
-              :rows="activeStep === 0 ? 4 : 8"
+              language="json"
+              :height="activeStep === 0 ? 120 : 150"
               placeholder='{"type": "object", "properties": {...}}'
-              resize="none"
             />
           </div>
         </div>
@@ -90,6 +87,13 @@
             </el-button>
           </div>
           <div class="action-center">
+            <el-button 
+              @click="resetToDefault"
+              size="large"
+            >
+              <el-icon><RefreshRight /></el-icon>
+              重置默认
+            </el-button>
             <el-button 
               type="primary" 
               size="large"
@@ -118,7 +122,8 @@
 <script setup lang="ts">
 import { ref, reactive } from 'vue'
 import { ElMessage } from 'element-plus'
-import { ArrowLeft, ArrowRight, VideoPlay } from '@element-plus/icons-vue'
+import { ArrowLeft, ArrowRight, VideoPlay, RefreshRight } from '@element-plus/icons-vue'
+import MonacoEditor from './MonacoEditor.vue'
 
 interface StepFormData {
   prompt: string
@@ -162,23 +167,173 @@ const steps: Step[] = [
   }
 ]
 
+// 预置的提示词和Schema
+const defaultPrompts = {
+  requirements: `请基于用户需求进行详细的需求分析，包括：
+1. 功能需求分析
+2. 非功能需求（性能、安全、可用性等）
+3. 技术约束和限制
+4. 用户角色和权限
+5. 业务流程分析`,
+  design: `请设计系统架构，包括：
+1. 系统架构图
+2. 技术选型（前端、后端、数据库等）
+3. 模块划分和职责
+4. 接口设计
+5. 数据模型设计`,
+  tasks: `请制定开发任务计划，包括：
+1. 任务分解（WBS）
+2. 任务优先级
+3. 时间估算
+4. 依赖关系
+5. 里程碑设置`,
+  coding: `请根据设计方案编写代码，包括：
+1. 核心功能实现
+2. 代码结构组织
+3. 错误处理
+4. 单元测试
+5. 代码注释和文档`
+}
+
+const defaultSchemas = {
+  requirements: JSON.stringify({
+    type: 'object',
+    properties: {
+      functionalRequirements: {
+        type: 'array',
+        items: { type: 'string' }
+      },
+      nonFunctionalRequirements: {
+        type: 'object',
+        properties: {
+          performance: { type: 'string' },
+          security: { type: 'string' },
+          usability: { type: 'string' }
+        }
+      },
+      constraints: {
+        type: 'array',
+        items: { type: 'string' }
+      },
+      userRoles: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            name: { type: 'string' },
+            permissions: { type: 'array', items: { type: 'string' } }
+          }
+        }
+      }
+    }
+  }, null, 2),
+  design: JSON.stringify({
+    type: 'object',
+    properties: {
+      architecture: {
+        type: 'object',
+        properties: {
+          pattern: { type: 'string' },
+          layers: { type: 'array', items: { type: 'string' } }
+        }
+      },
+      techStack: {
+        type: 'object',
+        properties: {
+          frontend: { type: 'string' },
+          backend: { type: 'string' },
+          database: { type: 'string' }
+        }
+      },
+      modules: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            name: { type: 'string' },
+            responsibility: { type: 'string' }
+          }
+        }
+      }
+    }
+  }, null, 2),
+  tasks: JSON.stringify({
+    type: 'object',
+    properties: {
+      tasks: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            name: { type: 'string' },
+            description: { type: 'string' },
+            priority: { type: 'string', enum: ['high', 'medium', 'low'] },
+            estimatedHours: { type: 'number' },
+            dependencies: { type: 'array', items: { type: 'string' } }
+          }
+        }
+      },
+      milestones: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            name: { type: 'string' },
+            date: { type: 'string' },
+            deliverables: { type: 'array', items: { type: 'string' } }
+          }
+        }
+      }
+    }
+  }, null, 2),
+  coding: JSON.stringify({
+    type: 'object',
+    properties: {
+      files: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            filename: { type: 'string' },
+            language: { type: 'string' },
+            purpose: { type: 'string' },
+            code: { type: 'string' }
+          }
+        }
+      },
+      tests: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            name: { type: 'string' },
+            type: { type: 'string' },
+            description: { type: 'string' }
+          }
+        }
+      }
+    }
+  }, null, 2)
+}
+
 const formData = reactive({
   requirements: {
     userRequirement: '',
-    prompt: '',
-    schema: ''
+    prompt: defaultPrompts.requirements,
+    schema: defaultSchemas.requirements
   },
   design: {
-    prompt: '',
-    schema: ''
+    prompt: defaultPrompts.design,
+    schema: defaultSchemas.design
   },
   tasks: {
-    prompt: '',
-    schema: ''
+    prompt: defaultPrompts.tasks,
+    schema: defaultSchemas.tasks
   },
   coding: {
-    prompt: '',
-    schema: ''
+    prompt: defaultPrompts.coding,
+    schema: defaultSchemas.coding
   }
 })
 
@@ -197,6 +352,17 @@ const previousStep = () => {
   if (activeStep.value > 0) {
     activeStep.value--
   }
+}
+
+const resetToDefault = () => {
+  const currentStep = steps[activeStep.value].key
+  const stepData = formData[currentStep as keyof typeof formData]
+  
+  // 重置提示词和Schema为默认值
+  stepData.prompt = defaultPrompts[currentStep as keyof typeof defaultPrompts]
+  stepData.schema = defaultSchemas[currentStep as keyof typeof defaultSchemas]
+  
+  ElMessage.success('已重置为默认值')
 }
 
 const executeStep = (stepName: string) => {
@@ -242,12 +408,16 @@ const executeStep = (stepName: string) => {
   display: flex;
   width: 100%;
   height: 100%;
+  min-height: 0;
   background: #fafafa;
+  overflow: hidden;
 }
 
 /* 侧边栏样式 */
 .sidebar {
   width: 240px;
+  min-width: 240px;
+  flex-shrink: 0;
   background: white;
   border-right: 1px solid #e4e4e7;
   padding: 20px;
@@ -331,9 +501,11 @@ const executeStep = (stepName: string) => {
 /* 主内容区样式 */
 .main-content {
   flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   padding: 24px 32px;
+  overflow: hidden;
 }
 
 .content-header {
@@ -354,9 +526,11 @@ const executeStep = (stepName: string) => {
 
 .form-container {
   flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 18px;
+  overflow: auto;
 }
 
 .input-group {
@@ -386,39 +560,6 @@ const executeStep = (stepName: string) => {
   flex: 1;
 }
 
-/* 自定义输入框样式 */
-:deep(.el-textarea) {
-  background: white;
-  border-radius: 8px;
-  overflow: hidden;
-}
-
-:deep(.el-textarea__inner) {
-  background: white;
-  border: 1px solid #e5e7eb;
-  color: #1f2937;
-  font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', monospace;
-  font-size: 13px;
-  line-height: 1.5;
-  padding: 12px;
-  border-radius: 8px;
-  transition: all 0.2s ease;
-}
-
-:deep(.el-textarea__inner:hover) {
-  border-color: #d1d5db;
-  background: #fafafa;
-}
-
-:deep(.el-textarea__inner:focus) {
-  border-color: #4f46e5;
-  background: white;
-  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
-}
-
-:deep(.el-textarea__inner::placeholder) {
-  color: #9ca3af;
-}
 
 /* 操作栏样式 */
 .action-bar {
@@ -437,6 +578,8 @@ const executeStep = (stepName: string) => {
 
 .action-center {
   flex: 0 0 auto;
+  display: flex;
+  gap: 10px;
 }
 
 /* 按钮样式 */

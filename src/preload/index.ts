@@ -6,7 +6,14 @@ const api = {
   windowControls: {
     minimize: () => ipcRenderer.send('window-minimize'),
     maximize: () => ipcRenderer.send('window-maximize'),
-    close: () => ipcRenderer.send('window-close')
+    close: () => ipcRenderer.send('window-close'),
+    isMaximized: () => ipcRenderer.invoke('window-is-maximized'),
+    onMaximizedChange: (callback: (isMaximized: boolean) => void) => {
+      ipcRenderer.on('window-maximized', (_, isMaximized) => callback(isMaximized))
+    },
+    removeMaximizedListener: () => {
+      ipcRenderer.removeAllListeners('window-maximized')
+    }
   }
 }
 

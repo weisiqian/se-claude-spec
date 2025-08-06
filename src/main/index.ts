@@ -3,8 +3,12 @@ import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 
+/**
+ * 创建主窗口，并设置为默认最大化显示。
+ * @returns {void}
+ */
 function createWindow(): void {
-  // Create the browser window.
+  // 创建主窗口，初始为隐藏，frame: false 以自定义窗口控制
   const mainWindow = new BrowserWindow({
     width: 1300,
     height: 900,
@@ -17,17 +21,28 @@ function createWindow(): void {
     }
   })
 
+  // 当窗口准备好显示时，显示窗口并设置为最大化
   mainWindow.on('ready-to-show', () => {
+    mainWindow.maximize() // 最大化窗口
     mainWindow.show()
   })
 
+  // 监听窗口最大化/还原事件，通知渲染进程更新状态
+  mainWindow.on('maximize', () => {
+    mainWindow.webContents.send('window-maximized', true)
+  })
+
+  mainWindow.on('unmaximize', () => {
+    mainWindow.webContents.send('window-maximized', false)
+  })
+
+  // 拦截新窗口打开请求，使用外部浏览器打开链接
   mainWindow.webContents.setWindowOpenHandler((details) => {
     shell.openExternal(details.url)
     return { action: 'deny' }
   })
 
-  // HMR for renderer base on electron-vite cli.
-  // Load the remote URL for development or the local html file for production.
+  // 开发环境下加载远程URL，生产环境加载本地HTML文件
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
     mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
   } else {
@@ -35,29 +50,29 @@ function createWindow(): void {
   }
 }
 
-// This method will be called when Electron has finished
-// initialization and is ready to create browser windows.
-// Some APIs can only be used after this event occurs.
+/**
+ * 应用初始化完成后执行的主流程。
+ * 包括设置应用ID、注册窗口快捷键、IPC事件、窗口控制等。
+ */
 app.whenReady().then(() => {
-  // Set app user model id for windows
+  // 设置 Windows 平台的应用模型ID
   electronApp.setAppUserModelId('com.electron')
 
-  // Default open or close DevTools by F12 in development
-  // and ignore CommandOrControl + R in production.
-  // see https://github.com/alex8088/electron-toolkit/tree/master/packages/utils
+  // 监听新建窗口事件，注册开发/生产环境下的快捷键
   app.on('browser-window-created', (_, window) => {
     optimizer.watchWindowShortcuts(window)
   })
 
-  // IPC test
+  // 测试IPC通信
   ipcMain.on('ping', () => console.log('pong'))
 
-  // Window control handlers
+  // 注册窗口最小化事件
   ipcMain.on('window-minimize', () => {
     const window = BrowserWindow.getFocusedWindow()
     if (window) window.minimize()
   })
 
+  // 注册窗口最大化/还原事件
   ipcMain.on('window-maximize', () => {
     const window = BrowserWindow.getFocusedWindow()
     if (window) {
@@ -69,28 +84,35 @@ app.whenReady().then(() => {
     }
   })
 
+  // 注册窗口关闭事件
   ipcMain.on('window-close', () => {
     const window = BrowserWindow.getFocusedWindow()
     if (window) window.close()
   })
 
+  // 获取窗口是否最大化状态
+  ipcMain.handle('window-is-maximized', () => {
+    const window = BrowserWindow.getFocusedWindow()
+    return window ? window.isMaximized() : false
+  })
+
+  // 创建主窗口（默认最大化）
   createWindow()
 
+  // macOS平台下点击Dock图标时无窗口则重新创建
   app.on('activate', function () {
-    // On macOS it's common to re-create a window in the app when the
-    // dock icon is clicked and there are no other windows open.
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
 })
 
-// Quit when all windows are closed, except on macOS. There, it's common
-// for applications and their menu bar to stay active until the user quits
-// explicitly with Cmd + Q.
+/**
+ * 所有窗口关闭时退出应用（macOS除外，遵循平台习惯）。
+ */
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit()
   }
 })
 
-// In this file you can include the rest of your app's specific main process
-// code. You can also put them in separate files and require them here.
+// 你可以在此文件中包含应用主进程的其他代码，
+// 也可以将其放在单独的文件中并在此处引入。

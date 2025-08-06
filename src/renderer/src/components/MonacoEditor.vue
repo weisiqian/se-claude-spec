@@ -61,9 +61,9 @@
       </div>
     </div>
     
-    <!-- 拖动手柄（全屏时隐藏） -->
+    <!-- 拖动手柄（最大化时隐藏） -->
     <div 
-      v-if="!isFullscreen"
+      v-if="!isMaximized"
       class="resize-handle"
       @mousedown="startResize"
       title="拖动调整高度"

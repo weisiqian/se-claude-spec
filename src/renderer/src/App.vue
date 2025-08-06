@@ -1,13 +1,26 @@
 <script setup lang="ts">
 import TitleBar from './components/TitleBar.vue'
 import StepForm from './components/StepForm.vue'
+import Terminal from './components/Terminal.vue'
+import ResizablePanel from './components/ResizablePanel.vue'
 </script>
 
 <template>
   <div class="app">
     <TitleBar />
     <div class="content">
-      <StepForm />
+      <ResizablePanel 
+        :initial-side-width="400"
+        :min-side-width="300"
+        :max-side-width="800"
+      >
+        <template #main>
+          <StepForm />
+        </template>
+        <template #side>
+          <Terminal />
+        </template>
+      </ResizablePanel>
     </div>
   </div>
 </template>

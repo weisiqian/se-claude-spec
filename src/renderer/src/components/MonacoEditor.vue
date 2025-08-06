@@ -1,14 +1,16 @@
 <template>
   <div class="monaco-editor-wrapper">
-    <!-- 全屏遮罩层 -->
-    <div v-if="isFullscreen" class="fullscreen-overlay">
-      <div class="fullscreen-container">
+    <!-- 最大化遮罩层 -->
+    <div v-if="isMaximized" class="maximized-overlay">
+      <div class="maximized-container">
         <!-- 工具栏 -->
-        <div class="editor-toolbar fullscreen-toolbar">
+        <div class="editor-toolbar maximized-toolbar">
+          <!-- 自定义工具栏插槽 -->
+          <slot name="maximized-toolbar"></slot>
           <button 
-            class="toolbar-btn fullscreen-btn"
-            @click="toggleFullscreen"
-            title="退出全屏 (ESC)"
+            class="toolbar-btn maximize-btn"
+            @click="toggleMaximize"
+            title="退出最大化 (ESC)"
           >
             <svg viewBox="0 0 24 24" width="16" height="16">
               <path fill="currentColor" d="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z"/>
@@ -16,12 +18,12 @@
           </button>
         </div>
         
-        <div ref="fullscreenEditorContainer" class="editor-instance fullscreen-editor-instance"></div>
+        <div ref="maximizedEditorContainer" class="editor-instance maximized-editor-instance"></div>
         
-        <!-- 全屏时的退出提示 -->
+        <!-- 最大化时的退出提示 -->
         <transition name="fade">
-          <div v-if="showFullscreenHint" class="fullscreen-hint">
-            按 ESC 退出全屏
+          <div v-if="showMaximizedHint" class="maximized-hint">
+            按 ESC 退出最大化
           </div>
         </transition>
       </div>
@@ -32,14 +34,14 @@
       class="monaco-editor-container" 
       :style="{ height: currentHeight + 'px' }"
       ref="containerRef"
-      v-show="!isFullscreen"
+      v-show="!isMaximized"
     >
       <!-- 工具栏 -->
       <div class="editor-toolbar">
         <button 
-          class="toolbar-btn fullscreen-btn"
-          @click="toggleFullscreen"
-          title="全屏显示"
+          class="toolbar-btn maximize-btn"
+          @click="toggleMaximize"
+          title="最大化"
         >
           <svg viewBox="0 0 24 24" width="16" height="16">
             <path fill="currentColor" d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/>
@@ -106,7 +108,7 @@ interface Props {
   placeholder?: string
   tabSize?: number
   automaticLayout?: boolean
-  enableFullscreen?: boolean
+  enableMaximize?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -123,7 +125,7 @@ const props = withDefaults(defineProps<Props>(), {
   placeholder: '',
   tabSize: 2,
   automaticLayout: true,
-  enableFullscreen: true
+  enableMaximize: true
 })
 
 const emit = defineEmits<{
@@ -132,14 +134,15 @@ const emit = defineEmits<{
   'blur': []
   'focus': []
   'resize': [height: number]
-  'fullscreen': [isFullscreen: boolean]
+  'maximize': [isMaximized: boolean]
+  'contextmenu': [event: { x: number, y: number, position: any }]
 }>()
 
 const editorContainer = ref<HTMLElement>()
-const fullscreenEditorContainer = ref<HTMLElement>()
+const maximizedEditorContainer = ref<HTMLElement>()
 const containerRef = ref<HTMLElement>()
 let editorInstance: editor.IStandaloneCodeEditor | null = null
-let fullscreenEditorInstance: editor.IStandaloneCodeEditor | null = null
+let maximizedEditorInstance: editor.IStandaloneCodeEditor | null = null
 const showPlaceholder = ref(false)
 
 // 生成唯一的编辑器ID
@@ -155,10 +158,10 @@ const isResizing = ref(false)
 const startY = ref(0)
 const startHeight = ref(0)
 
-// 全屏相关
-const isFullscreen = ref(false)
-const showFullscreenHint = ref(false)
-let fullscreenHintTimer: NodeJS.Timeout | null = null
+// 最大化相关
+const isMaximized = ref(false)
+const showMaximizedHint = ref(false)
+let maximizedHintTimer: NodeJS.Timeout | null = null
 let escKeyListener: ((e: KeyboardEvent) => void) | null = null
 
 // 计算是否显示 placeholder
@@ -171,16 +174,16 @@ const focusEditor = () => {
   editorInstance?.focus()
 }
 
-// 创建全屏编辑器实例
-const createFullscreenEditor = () => {
-  if (!fullscreenEditorContainer.value || fullscreenEditorInstance) return
+// 创建最大化编辑器实例
+const createMaximizedEditor = () => {
+  if (!maximizedEditorContainer.value || maximizedEditorInstance) return
   
   const currentValue = editorInstance?.getValue() || props.modelValue || ''
   const currentModel = editorInstance?.getModel()
   const currentLanguage = currentModel ? monaco.editor.getModel(currentModel.uri)?.getLanguageId() : props.language
   
-  // 创建全屏编辑器
-  fullscreenEditorInstance = monaco.editor.create(fullscreenEditorContainer.value, {
+  // 创建最大化编辑器
+  maximizedEditorInstance = monaco.editor.create(maximizedEditorContainer.value, {
     value: currentValue,
     language: currentLanguage,
     theme: 'customLight',
@@ -227,7 +230,7 @@ const createFullscreenEditor = () => {
       indentation: true,
       bracketPairs: true
     },
-    contextmenu: false,
+    contextmenu: true,
     hover: {
       enabled: false
     },
@@ -239,9 +242,9 @@ const createFullscreenEditor = () => {
     codeActionsOnSaveTimeout: 0
   })
   
-  // 监听全屏编辑器的内容变化
-  fullscreenEditorInstance.onDidChangeModelContent(() => {
-    const value = fullscreenEditorInstance?.getValue() || ''
+  // 监听最大化编辑器的内容变化
+  maximizedEditorInstance.onDidChangeModelContent(() => {
+    const value = maximizedEditorInstance?.getValue() || ''
     emit('update:modelValue', value)
     emit('change', value)
     // 同步到主编辑器
@@ -251,55 +254,67 @@ const createFullscreenEditor = () => {
   })
   
   // 监听焦点事件
-  fullscreenEditorInstance.onDidFocusEditorText(() => {
+  maximizedEditorInstance.onDidFocusEditorText(() => {
     emit('focus')
   })
   
-  fullscreenEditorInstance.onDidBlurEditorText(() => {
+  maximizedEditorInstance.onDidBlurEditorText(() => {
     emit('blur')
   })
   
-  // 聚焦全屏编辑器
-  fullscreenEditorInstance.focus()
+  // 监听右键菜单事件
+  maximizedEditorInstance.onContextMenu((e) => {
+    e.event.preventDefault()
+    e.event.stopPropagation()
+    const position = e.target.position || maximizedEditorInstance.getPosition()
+    emit('contextmenu', {
+      x: e.event.posx,
+      y: e.event.posy,
+      position: position
+    })
+  })
+  
+  // 聚焦最大化编辑器
+  maximizedEditorInstance.focus()
 }
 
-// 切换全屏
-const toggleFullscreen = async () => {
-  isFullscreen.value = !isFullscreen.value
+// 切换最大化
+const toggleMaximize = async () => {
+  isMaximized.value = !isMaximized.value
   
-  if (isFullscreen.value) {
-    // 进入全屏
-    showFullscreenHint.value = true
+  if (isMaximized.value) {
+    // 进入最大化
+    showMaximizedHint.value = true
     
     // 3秒后隐藏提示
-    if (fullscreenHintTimer) {
-      clearTimeout(fullscreenHintTimer)
+    if (maximizedHintTimer) {
+      clearTimeout(maximizedHintTimer)
     }
-    fullscreenHintTimer = setTimeout(() => {
-      showFullscreenHint.value = false
+    maximizedHintTimer = setTimeout(() => {
+      showMaximizedHint.value = false
     }, 3000)
     
-    // 等待 DOM 更新后创建全屏编辑器
+    // 等待 DOM 更新后创建最大化编辑器
     await nextTick()
-    createFullscreenEditor()
+    createMaximizedEditor()
   } else {
-    // 退出全屏
-    showFullscreenHint.value = false
-    if (fullscreenHintTimer) {
-      clearTimeout(fullscreenHintTimer)
-      fullscreenHintTimer = null
+    // 退出最大化
+    showMaximizedHint.value = false
+    if (maximizedHintTimer) {
+      clearTimeout(maximizedHintTimer)
+      maximizedHintTimer = null
     }
     
-    // 保存全屏编辑器的内容到主编辑器
-    if (fullscreenEditorInstance && editorInstance) {
-      const value = fullscreenEditorInstance.getValue()
+    // 保存最大化编辑器的内容到主编辑器
+    if (maximizedEditorInstance && editorInstance) {
+      const value = maximizedEditorInstance.getValue()
       editorInstance.setValue(value)
     }
     
-    // 销毁全屏编辑器
-    if (fullscreenEditorInstance) {
-      fullscreenEditorInstance.dispose()
-      fullscreenEditorInstance = null
+    // 销毁最大化编辑器
+    if (maximizedEditorInstance) {
+      maximizedEditorInstance.dispose()
+      maximizedEditorInstance = null
     }
     
     // 重新聚焦主编辑器
@@ -310,22 +325,22 @@ const toggleFullscreen = async () => {
   }
   
   // 触发事件
-  emit('fullscreen', isFullscreen.value)
+  emit('maximize', isMaximized.value)
 }
 
-// ESC 键退出全屏
+// ESC 键退出最大化
 const handleEscKey = (e: KeyboardEvent) => {
-  // 只在全屏模式下处理 ESC 键
-  if (e.key === 'Escape' && isFullscreen.value) {
+  // 只在最大化模式下处理 ESC 键
+  if (e.key === 'Escape' && isMaximized.value) {
     e.preventDefault()
     e.stopPropagation()
-    toggleFullscreen()
+    toggleMaximize()
   }
 }
 
 // 开始拖动
 const startResize = (e: MouseEvent) => {
-  if (isFullscreen.value) return
+  if (isMaximized.value) return
   
   isResizing.value = true
   startY.value = e.pageY
@@ -343,7 +358,7 @@ const startResize = (e: MouseEvent) => {
 
 // 处理拖动
 const handleResize = (e: MouseEvent) => {
-  if (!isResizing.value || isFullscreen.value) return
+  if (!isResizing.value || isMaximized.value) return
   
   const deltaY = e.pageY - startY.value
   let newHeight = startHeight.value + deltaY
@@ -455,7 +470,7 @@ onMounted(async () => {
   registerMarkdownLanguage()
   
   // 添加键盘事件监听 - 使用独立的监听器实例
-  if (props.enableFullscreen) {
+  if (props.enableMaximize) {
     escKeyListener = handleEscKey
     // 使用捕获阶段，避免被其他元素阻止
     document.addEventListener('keydown', escKeyListener, false)
@@ -549,8 +564,8 @@ onMounted(async () => {
         indentation: true,
         bracketPairs: true
       },
-      // 禁用更多可能导致问题的功能
-      contextmenu: false,
+      // 启用右键菜单但使用自定义处理
+      contextmenu: true,
       hover: {
         enabled: false
       },
@@ -581,6 +596,23 @@ onMounted(async () => {
       updatePlaceholderVisibility()
     })
 
+    // 监听右键菜单事件
+    editorInstance.onContextMenu((e) => {
+      // 阻止默认的 Monaco 右键菜单
+      e.event.preventDefault()
+      e.event.stopPropagation()
+      
+      // 获取光标位置
+      const position = e.target.position || editorInstance.getPosition()
+      
+      // 触发自定义右键菜单事件
+      emit('contextmenu', {
+        x: e.event.posx,
+        y: e.event.posy,
+        position: position
+      })
+    })
+
     // 初始化 placeholder 可见性
     updatePlaceholderVisibility()
   }
@@ -594,6 +626,11 @@ watch(() => props.modelValue, (newValue) => {
   } else if (!editorInstance) {
     // 如果编辑器还没初始化，更新 placeholder 状态
     showPlaceholder.value = !newValue && !!props.placeholder
+  }
+  
+  // 同步更新最大化编辑器的值
+  if (maximizedEditorInstance && maximizedEditorInstance.getValue() !== newValue) {
+    maximizedEditorInstance.setValue(newValue || '')
   }
 })
 
@@ -633,14 +670,17 @@ watch(() => props.readOnly, (newReadOnly) => {
   if (editorInstance) {
     editorInstance.updateOptions({ readOnly: newReadOnly })
   }
+  if (maximizedEditorInstance) {
+    maximizedEditorInstance.updateOptions({ readOnly: newReadOnly })
+  }
 })
 
 onUnmounted(() => {
   if (editorInstance) {
     editorInstance.dispose()
   }
-  if (fullscreenEditorInstance) {
-    fullscreenEditorInstance.dispose()
+  if (maximizedEditorInstance) {
+    maximizedEditorInstance.dispose()
   }
   // 清理拖动事件
   if (isResizing.value) {
@@ -652,8 +692,8 @@ onUnmounted(() => {
     escKeyListener = null
   }
   // 清理定时器
-  if (fullscreenHintTimer) {
-    clearTimeout(fullscreenHintTimer)
+  if (maximizedHintTimer) {
+    clearTimeout(maximizedHintTimer)
   }
 })
 
@@ -663,16 +703,40 @@ defineExpose({
   getValue: () => editorInstance?.getValue() || '',
   setValue: (value: string) => editorInstance?.setValue(value || ''),
   getEditor: () => editorInstance,
+  insertTextAtCursor: (text: string) => {
+    if (editorInstance) {
+      const position = editorInstance.getPosition()
+      if (position) {
+        const range = new monaco.Range(
+          position.lineNumber,
+          position.column,
+          position.lineNumber,
+          position.column
+        )
+        editorInstance.executeEdits('insert-placeholder', [{
+          range: range,
+          text: text
+        }])
+        // 移动光标到插入文本的末尾
+        const newPosition = {
+          lineNumber: position.lineNumber,
+          column: position.column + text.length
+        }
+        editorInstance.setPosition(newPosition)
+        editorInstance.focus()
+      }
+    }
+  },
   setHeight: (height: number) => {
     currentHeight.value = Math.max(props.minHeight, Math.min(props.maxHeight, height))
     if (editorInstance) {
       editorInstance.layout()
     }
   },
-  toggleFullscreen,
-  exitFullscreen: () => {
-    if (isFullscreen.value) {
-      toggleFullscreen()
+  toggleMaximize,
+  exitMaximize: () => {
+    if (isMaximized.value) {
+      toggleMaximize()
     }
   }
 })
@@ -684,20 +748,21 @@ defineExpose({
   width: 100%;
 }
 
-/* 全屏遮罩层 */
-.fullscreen-overlay {
+/* 最大化遮罩层 */
+.maximized-overlay {
   position: fixed;
   top: 32px; /* 留出标题栏高度 */
-  left: 0;
+  left: 240px; /* 留出左侧步骤条宽度 */
   right: 0;
   bottom: 0;
   background: #ffffff;
   z-index: 9999;
   display: flex;
   flex-direction: column;
+  border-left: 1px solid #e4e4e7;
 }
 
-.fullscreen-container {
+.maximized-container {
   width: 100%;
   height: 100%;
   display: flex;
@@ -705,13 +770,13 @@ defineExpose({
   position: relative;
 }
 
-.fullscreen-editor-instance {
+.maximized-editor-instance {
   flex: 1;
   width: 100%;
   height: 100%;
 }
 
-.fullscreen-toolbar {
+.maximized-toolbar {
   position: absolute !important;
   top: 16px;
   right: 16px;
@@ -836,10 +901,10 @@ defineExpose({
   background: #6b7280;
 }
 
-/* 全屏提示 */
-.fullscreen-hint {
+/* 最大化提示 */
+.maximized-hint {
   position: fixed;
-  top: 20px;
+  top: 50px;
   left: 50%;
   transform: translateX(-50%);
   background: rgba(31, 41, 55, 0.9);

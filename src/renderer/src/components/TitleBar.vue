@@ -33,31 +33,43 @@ import { ref, onMounted, onUnmounted } from 'vue'
 const isMaximized = ref(false)
 
 const minimize = () => {
-  window.api.windowControls.minimize()
+  if (window.api?.windowControls) {
+    window.api.windowControls.minimize()
+  }
 }
 
 const maximize = () => {
-  window.api.windowControls.maximize()
+  if (window.api?.windowControls) {
+    window.api.windowControls.maximize()
+  }
 }
 
 const close = () => {
-  window.api.windowControls.close()
+  if (window.api?.windowControls) {
+    window.api.windowControls.close()
+  }
 }
 
 const updateMaximizeState = async () => {
-  isMaximized.value = await window.api.windowControls.isMaximized()
+  if (window.api?.windowControls) {
+    isMaximized.value = await window.api.windowControls.isMaximized()
+  }
 }
 
 onMounted(async () => {
-  await updateMaximizeState()
-  
-  window.api.windowControls.onMaximizedChange((maximized: boolean) => {
-    isMaximized.value = maximized
-  })
+  if (window.api?.windowControls) {
+    await updateMaximizeState()
+    
+    window.api.windowControls.onMaximizedChange((maximized: boolean) => {
+      isMaximized.value = maximized
+    })
+  }
 })
 
 onUnmounted(() => {
-  window.api.windowControls.removeMaximizedListener()
+  if (window.api?.windowControls?.removeMaximizedListener) {
+    window.api.windowControls.removeMaximizedListener()
+  }
 })
 </script>
 

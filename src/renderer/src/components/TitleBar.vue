@@ -1,7 +1,7 @@
 <template>
   <div class="title-bar">
     <!-- 应用图标和菜单 -->
-    <div class="app-menu" @mouseenter="showMenu = true" @mouseleave="showMenu = false">
+    <div class="app-menu" @mouseenter="showMenu = true" @mouseleave="handleMenuLeave">
       <div class="app-icon">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
           <rect x="3" y="3" width="7" height="7" fill="currentColor" />
@@ -12,73 +12,119 @@
       </div>
       <transition name="menu-slide">
         <div class="dropdown-menu" v-show="showMenu">
-          <div class="menu-group">
-            <div class="menu-title">项目</div>
-            <div class="menu-item" @click="selectDirectory">
+          <!-- 一级菜单 -->
+          <div class="primary-menu">
+            <div class="primary-menu-item" 
+                 @mouseenter="activeSubmenu = 'project'"
+                 @click="handlePrimaryClick('project')">
               <el-icon><FolderOpened /></el-icon>
-              <span>选择目录</span>
+              <span>项目</span>
+              <el-icon class="menu-arrow"><ArrowRight /></el-icon>
+            </div>
+            <div class="primary-menu-item" 
+                 @mouseenter="activeSubmenu = 'requirement'"
+                 @click="handlePrimaryClick('requirement')">
+              <el-icon><Document /></el-icon>
+              <span>需求</span>
+              <el-icon class="menu-arrow"><ArrowRight /></el-icon>
+            </div>
+            <div class="primary-menu-item" 
+                 @mouseenter="activeSubmenu = 'design'"
+                 @click="handlePrimaryClick('design')">
+              <el-icon><Brush /></el-icon>
+              <span>设计</span>
+              <el-icon class="menu-arrow"><ArrowRight /></el-icon>
+            </div>
+            <div class="primary-menu-item" 
+                 @mouseenter="activeSubmenu = 'task'"
+                 @click="handlePrimaryClick('task')">
+              <el-icon><Tickets /></el-icon>
+              <span>任务</span>
+              <el-icon class="menu-arrow"><ArrowRight /></el-icon>
+            </div>
+            <div class="primary-menu-item" 
+                 @mouseenter="activeSubmenu = 'help'"
+                 @click="handlePrimaryClick('help')">
+              <el-icon><QuestionFilled /></el-icon>
+              <span>帮助</span>
+              <el-icon class="menu-arrow"><ArrowRight /></el-icon>
             </div>
           </div>
           
-          <div class="menu-divider"></div>
-          
-          <div class="menu-group">
-            <div class="menu-title">需求</div>
-            <div class="menu-item" @click="handleAction('requirement', 'create')">
-              <el-icon><DocumentAdd /></el-icon>
-              <span>新建需求文档</span>
+          <!-- 二级菜单 -->
+          <transition name="submenu-slide">
+            <div class="secondary-menu" v-show="activeSubmenu">
+              <!-- 项目子菜单 -->
+              <div v-if="activeSubmenu === 'project'" class="submenu-content">
+                <div class="menu-item" @click="selectDirectory">
+                  <el-icon><FolderOpened /></el-icon>
+                  <span>选择目录</span>
+                  <span class="menu-shortcut">Ctrl+O</span>
+                </div>
+              </div>
+              
+              <!-- 需求子菜单 -->
+              <div v-if="activeSubmenu === 'requirement'" class="submenu-content">
+                <div class="menu-item" @click="handleAction('requirement', 'create')">
+                  <el-icon><DocumentAdd /></el-icon>
+                  <span>新建需求文档</span>
+                  <span class="menu-shortcut">Ctrl+N</span>
+                </div>
+                <div class="menu-item" @click="handleAction('requirement', 'update')">
+                  <el-icon><Edit /></el-icon>
+                  <span>更新需求文档</span>
+                  <span class="menu-shortcut">Ctrl+U</span>
+                </div>
+              </div>
+              
+              <!-- 设计子菜单 -->
+              <div v-if="activeSubmenu === 'design'" class="submenu-content">
+                <div class="menu-item" @click="handleAction('design', 'create')">
+                  <el-icon><DocumentAdd /></el-icon>
+                  <span>新建设计文档</span>
+                  <span class="menu-shortcut">Ctrl+Shift+N</span>
+                </div>
+                <div class="menu-item" @click="handleAction('design', 'update')">
+                  <el-icon><Edit /></el-icon>
+                  <span>更新设计文档</span>
+                  <span class="menu-shortcut">Ctrl+Shift+U</span>
+                </div>
+              </div>
+              
+              <!-- 任务子菜单 -->
+              <div v-if="activeSubmenu === 'task'" class="submenu-content">
+                <div class="menu-item" @click="handleAction('task', 'create')">
+                  <el-icon><DocumentAdd /></el-icon>
+                  <span>新建任务清单</span>
+                  <span class="menu-shortcut">Ctrl+T</span>
+                </div>
+                <div class="menu-item" @click="handleAction('task', 'update')">
+                  <el-icon><Edit /></el-icon>
+                  <span>更新任务清单</span>
+                  <span class="menu-shortcut">Ctrl+Shift+T</span>
+                </div>
+                <div class="menu-item" @click="handleAction('task', 'execute')">
+                  <el-icon><VideoPlay /></el-icon>
+                  <span>执行任务清单</span>
+                  <span class="menu-shortcut">Ctrl+E</span>
+                </div>
+              </div>
+              
+              <!-- 帮助子菜单 -->
+              <div v-if="activeSubmenu === 'help'" class="submenu-content">
+                <div class="menu-item" @click="showAbout">
+                  <el-icon><InfoFilled /></el-icon>
+                  <span>关于</span>
+                  <span class="menu-shortcut">F1</span>
+                </div>
+                <div class="menu-item" @click="toggleTheme">
+                  <el-icon><Sunny /></el-icon>
+                  <span>{{ isDark ? '浅色主题' : '深色主题' }}</span>
+                  <span class="menu-shortcut">Ctrl+Shift+D</span>
+                </div>
+              </div>
             </div>
-            <div class="menu-item" @click="handleAction('requirement', 'update')">
-              <el-icon><Edit /></el-icon>
-              <span>更新需求文档</span>
-            </div>
-          </div>
-          
-          <div class="menu-divider"></div>
-          
-          <div class="menu-group">
-            <div class="menu-title">设计</div>
-            <div class="menu-item" @click="handleAction('design', 'create')">
-              <el-icon><DocumentAdd /></el-icon>
-              <span>新建设计文档</span>
-            </div>
-            <div class="menu-item" @click="handleAction('design', 'update')">
-              <el-icon><Edit /></el-icon>
-              <span>更新设计文档</span>
-            </div>
-          </div>
-          
-          <div class="menu-divider"></div>
-          
-          <div class="menu-group">
-            <div class="menu-title">任务</div>
-            <div class="menu-item" @click="handleAction('task', 'create')">
-              <el-icon><DocumentAdd /></el-icon>
-              <span>新建任务清单</span>
-            </div>
-            <div class="menu-item" @click="handleAction('task', 'update')">
-              <el-icon><Edit /></el-icon>
-              <span>更新任务清单</span>
-            </div>
-            <div class="menu-item" @click="handleAction('task', 'execute')">
-              <el-icon><VideoPlay /></el-icon>
-              <span>执行任务清单</span>
-            </div>
-          </div>
-          
-          <div class="menu-divider"></div>
-          
-          <div class="menu-group">
-            <div class="menu-title">帮助</div>
-            <div class="menu-item" @click="showAbout">
-              <el-icon><InfoFilled /></el-icon>
-              <span>关于</span>
-            </div>
-            <div class="menu-item" @click="toggleTheme">
-              <el-icon><Sunny /></el-icon>
-              <span>{{ isDark ? '浅色主题' : '深色主题' }}</span>
-            </div>
-          </div>
+          </transition>
         </div>
       </transition>
     </div>
@@ -176,7 +222,12 @@ import {
   VideoPlay, 
   InfoFilled, 
   Sunny,
-  Close
+  Close,
+  ArrowRight,
+  Document,
+  Brush,
+  Tickets,
+  QuestionFilled
 } from '@element-plus/icons-vue'
 
 const props = defineProps<{
@@ -197,6 +248,8 @@ const emit = defineEmits<{
 const isMaximized = ref(false)
 const showMenu = ref(false)
 const showTerminalMenu = ref(false)
+const activeSubmenu = ref<string | null>(null)
+const menuLeaveTimer = ref<NodeJS.Timeout | null>(null)
 const terminals = ref<Array<{ id: string; label?: string }>>(props.terminals || [])
 const activeTerminalId = ref(props.activeTerminalId || '')
 const isWindows = ref(false)
@@ -212,11 +265,27 @@ watch(() => props.activeTerminalId, (newId) => {
 
 const handleAction = (type: string, action: string) => {
   showMenu.value = false
+  activeSubmenu.value = null
   emit('menu-action', type, action)
+}
+
+const handlePrimaryClick = (menu: string) => {
+  activeSubmenu.value = menu
+}
+
+const handleMenuLeave = () => {
+  if (menuLeaveTimer.value) {
+    clearTimeout(menuLeaveTimer.value)
+  }
+  menuLeaveTimer.value = setTimeout(() => {
+    showMenu.value = false
+    activeSubmenu.value = null
+  }, 300)
 }
 
 const selectDirectory = async () => {
   showMenu.value = false
+  activeSubmenu.value = null
   const result = await window.api?.dialog?.openDirectory()
   if (result && !result.canceled && result.filePaths.length > 0) {
     emit('directory-selected', result.filePaths[0])
@@ -226,6 +295,7 @@ const selectDirectory = async () => {
 
 const showAbout = () => {
   showMenu.value = false
+  activeSubmenu.value = null
   ElMessageBox.alert(
     '这是一个基于 Electron + Vue 的桌面应用程序',
     '关于',
@@ -237,6 +307,7 @@ const showAbout = () => {
 
 const toggleTheme = () => {
   showMenu.value = false
+  activeSubmenu.value = null
   emit('theme-toggle')
   ElMessage.success(`已切换至${props.isDark ? '浅色' : '深色'}主题`)
 }
@@ -282,6 +353,44 @@ const updateMaximizeState = async () => {
   }
 }
 
+const handleKeyboard = (event: KeyboardEvent) => {
+  const ctrl = event.ctrlKey || event.metaKey
+  const shift = event.shiftKey
+  const key = event.key.toLowerCase()
+  
+  if (ctrl && !shift && key === 'o') {
+    event.preventDefault()
+    selectDirectory()
+  } else if (ctrl && !shift && key === 'n') {
+    event.preventDefault()
+    handleAction('requirement', 'create')
+  } else if (ctrl && !shift && key === 'u') {
+    event.preventDefault()
+    handleAction('requirement', 'update')
+  } else if (ctrl && shift && key === 'n') {
+    event.preventDefault()
+    handleAction('design', 'create')
+  } else if (ctrl && shift && key === 'u') {
+    event.preventDefault()
+    handleAction('design', 'update')
+  } else if (ctrl && !shift && key === 't') {
+    event.preventDefault()
+    handleAction('task', 'create')
+  } else if (ctrl && shift && key === 't') {
+    event.preventDefault()
+    handleAction('task', 'update')
+  } else if (ctrl && !shift && key === 'e') {
+    event.preventDefault()
+    handleAction('task', 'execute')
+  } else if (ctrl && shift && key === 'd') {
+    event.preventDefault()
+    toggleTheme()
+  } else if (key === 'f1') {
+    event.preventDefault()
+    showAbout()
+  }
+}
+
 onMounted(async () => {
   if (window.api?.windowControls) {
     await updateMaximizeState()
@@ -294,12 +403,19 @@ onMounted(async () => {
   // 检测操作系统
   const platform = navigator.platform.toLowerCase()
   isWindows.value = platform.includes('win')
+  
+  // 注册键盘事件监听
+  document.addEventListener('keydown', handleKeyboard)
 })
 
 onUnmounted(() => {
   if (window.api?.windowControls?.removeMaximizedListener) {
     window.api.windowControls.removeMaximizedListener()
   }
+  if (menuLeaveTimer.value) {
+    clearTimeout(menuLeaveTimer.value)
+  }
+  document.removeEventListener('keydown', handleKeyboard)
 })
 </script>
 
@@ -338,53 +454,92 @@ onUnmounted(() => {
   background-color: var(--hover-bg, rgba(0, 0, 0, 0.05));
 }
 
-/* 下拉菜单 */
+/* 下拉菜单容器 */
 .dropdown-menu {
   position: absolute;
   top: 100%;
   left: 0;
-  min-width: 220px;
-  max-height: 70vh;
-  overflow-y: auto;
+  display: flex;
+  background: transparent;
+  z-index: 1000;
+}
+
+/* 一级菜单 */
+.primary-menu {
+  width: 180px;
   background: var(--bg-secondary, #fff);
   border: 1px solid var(--border-primary, #e0e0e0);
   border-radius: 0 0 6px 6px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  z-index: 1000;
+  overflow: hidden;
 }
 
-.menu-group {
+.primary-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  font-size: 13px;
+  color: var(--text-primary, #333);
+  cursor: pointer;
+  transition: background-color 0.2s;
+  position: relative;
+}
+
+.primary-menu-item:hover {
+  background-color: var(--hover-bg, rgba(0, 0, 0, 0.05));
+}
+
+.menu-arrow {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--text-secondary, #999);
+}
+
+/* 二级菜单 */
+.secondary-menu {
+  position: absolute;
+  left: 180px;
+  top: 0;
+  min-width: 260px;
+  background: var(--bg-secondary, #fff);
+  border: 1px solid var(--border-primary, #e0e0e0);
+  border-radius: 0 6px 6px 6px;
+  box-shadow: 2px 4px 12px rgba(0, 0, 0, 0.15);
+  margin-left: 2px;
+}
+
+.submenu-content {
   padding: 4px 0;
-}
-
-.menu-title {
-  padding: 6px 12px;
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--text-secondary, #666);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
 }
 
 .menu-item {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 12px;
+  padding: 8px 16px;
   font-size: 13px;
   color: var(--text-primary, #333);
   cursor: pointer;
   transition: background-color 0.2s;
+  position: relative;
+  white-space: nowrap;
 }
 
 .menu-item:hover {
   background-color: var(--hover-bg, rgba(0, 0, 0, 0.05));
 }
 
-.menu-divider {
-  height: 1px;
-  margin: 4px 0;
-  background-color: var(--border-primary, #e0e0e0);
+.menu-item > span:nth-child(2) {
+  flex: 1;
+  white-space: nowrap;
+}
+
+.menu-shortcut {
+  margin-left: 20px;
+  font-size: 11px;
+  color: var(--text-secondary, #999);
+  white-space: nowrap;
 }
 
 /* 终端标签容器 */
@@ -576,5 +731,30 @@ onUnmounted(() => {
 .menu-slide-leave-to {
   opacity: 0;
   transform: translateY(-10px);
+}
+
+/* 二级菜单动画 */
+.submenu-slide-enter-active,
+.submenu-slide-leave-active {
+  transition: opacity 0.15s, transform 0.15s;
+}
+
+.submenu-slide-enter-from,
+.submenu-slide-leave-to {
+  opacity: 0;
+  transform: translateX(-10px);
+}
+
+/* 深色主题支持 */
+.dark .dropdown-menu {
+  --bg-secondary: #2d2d2d;
+  --border-primary: #404040;
+  --text-primary: #fff;
+  --text-secondary: #999;
+  --hover-bg: rgba(255, 255, 255, 0.1);
+}
+
+.dark .menu-shortcut {
+  color: #666;
 }
 </style>

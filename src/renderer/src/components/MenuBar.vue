@@ -1,73 +1,103 @@
 <template>
-  <div class="menu-bar">
-    <div class="menu-item" @click="toggleMenu('project')">
+  <div class="menu-bar" @mouseleave="closeMenu">
+    <div class="menu-item" 
+         @mouseenter="openMenu('project')"
+         @click="toggleMenu('project')">
       <span>项目</span>
-      <div class="menu-dropdown" v-show="activeMenu === 'project'">
-        <div class="menu-option" @click="selectDirectory">
-          <el-icon><FolderOpened /></el-icon>
-          选择目录
+      <transition name="menu-fade">
+        <div class="menu-dropdown" v-show="activeMenu === 'project'">
+          <div class="menu-option" @click="selectDirectory">
+            <el-icon><FolderOpened /></el-icon>
+            <span>选择目录</span>
+            <span class="menu-shortcut">Ctrl+O</span>
+          </div>
         </div>
-      </div>
+      </transition>
     </div>
     
-    <div class="menu-item" @click="toggleMenu('requirement')">
+    <div class="menu-item" 
+         @mouseenter="openMenu('requirement')"
+         @click="toggleMenu('requirement')">
       <span>需求</span>
-      <div class="menu-dropdown" v-show="activeMenu === 'requirement'">
-        <div class="menu-option" @click="handleAction('requirement', 'create')">
-          <el-icon><DocumentAdd /></el-icon>
-          新建需求文档
+      <transition name="menu-fade">
+        <div class="menu-dropdown" v-show="activeMenu === 'requirement'">
+          <div class="menu-option" @click="handleAction('requirement', 'create')">
+            <el-icon><DocumentAdd /></el-icon>
+            <span>新建需求文档</span>
+            <span class="menu-shortcut">Ctrl+N</span>
+          </div>
+          <div class="menu-option" @click="handleAction('requirement', 'update')">
+            <el-icon><Edit /></el-icon>
+            <span>更新需求文档</span>
+            <span class="menu-shortcut">Ctrl+U</span>
+          </div>
         </div>
-        <div class="menu-option" @click="handleAction('requirement', 'update')">
-          <el-icon><Edit /></el-icon>
-          更新需求文档
-        </div>
-      </div>
+      </transition>
     </div>
     
-    <div class="menu-item" @click="toggleMenu('design')">
+    <div class="menu-item" 
+         @mouseenter="openMenu('design')"
+         @click="toggleMenu('design')">
       <span>设计</span>
-      <div class="menu-dropdown" v-show="activeMenu === 'design'">
-        <div class="menu-option" @click="handleAction('design', 'create')">
-          <el-icon><DocumentAdd /></el-icon>
-          新建设计文档
+      <transition name="menu-fade">
+        <div class="menu-dropdown" v-show="activeMenu === 'design'">
+          <div class="menu-option" @click="handleAction('design', 'create')">
+            <el-icon><DocumentAdd /></el-icon>
+            <span>新建设计文档</span>
+            <span class="menu-shortcut">Ctrl+Shift+N</span>
+          </div>
+          <div class="menu-option" @click="handleAction('design', 'update')">
+            <el-icon><Edit /></el-icon>
+            <span>更新设计文档</span>
+            <span class="menu-shortcut">Ctrl+Shift+U</span>
+          </div>
         </div>
-        <div class="menu-option" @click="handleAction('design', 'update')">
-          <el-icon><Edit /></el-icon>
-          更新设计文档
-        </div>
-      </div>
+      </transition>
     </div>
     
-    <div class="menu-item" @click="toggleMenu('task')">
+    <div class="menu-item" 
+         @mouseenter="openMenu('task')"
+         @click="toggleMenu('task')">
       <span>任务</span>
-      <div class="menu-dropdown" v-show="activeMenu === 'task'">
-        <div class="menu-option" @click="handleAction('task', 'create')">
-          <el-icon><DocumentAdd /></el-icon>
-          新建任务清单
+      <transition name="menu-fade">
+        <div class="menu-dropdown" v-show="activeMenu === 'task'">
+          <div class="menu-option" @click="handleAction('task', 'create')">
+            <el-icon><DocumentAdd /></el-icon>
+            <span>新建任务清单</span>
+            <span class="menu-shortcut">Ctrl+T</span>
+          </div>
+          <div class="menu-option" @click="handleAction('task', 'update')">
+            <el-icon><Edit /></el-icon>
+            <span>更新任务清单</span>
+            <span class="menu-shortcut">Ctrl+Shift+T</span>
+          </div>
+          <div class="menu-option" @click="handleAction('task', 'execute')">
+            <el-icon><VideoPlay /></el-icon>
+            <span>执行任务清单</span>
+            <span class="menu-shortcut">Ctrl+E</span>
+          </div>
         </div>
-        <div class="menu-option" @click="handleAction('task', 'update')">
-          <el-icon><Edit /></el-icon>
-          更新任务清单
-        </div>
-        <div class="menu-option" @click="handleAction('task', 'execute')">
-          <el-icon><VideoPlay /></el-icon>
-          执行任务清单
-        </div>
-      </div>
+      </transition>
     </div>
     
-    <div class="menu-item" @click="toggleMenu('help')">
+    <div class="menu-item" 
+         @mouseenter="openMenu('help')"
+         @click="toggleMenu('help')">
       <span>帮助</span>
-      <div class="menu-dropdown" v-show="activeMenu === 'help'">
-        <div class="menu-option" @click="showAbout">
-          <el-icon><InfoFilled /></el-icon>
-          关于
+      <transition name="menu-fade">
+        <div class="menu-dropdown" v-show="activeMenu === 'help'">
+          <div class="menu-option" @click="showAbout">
+            <el-icon><InfoFilled /></el-icon>
+            <span>关于</span>
+            <span class="menu-shortcut">F1</span>
+          </div>
+          <div class="menu-option" @click="toggleTheme">
+            <el-icon><Sunny /></el-icon>
+            <span>主题</span>
+            <span class="menu-shortcut">Ctrl+Shift+D</span>
+          </div>
         </div>
-        <div class="menu-option" @click="toggleTheme">
-          <el-icon><Sunny /></el-icon>
-          主题
-        </div>
-      </div>
+      </transition>
     </div>
   </div>
 </template>
@@ -95,17 +125,41 @@ const emit = defineEmits<{
 }>()
 
 const activeMenu = ref<string | null>(null)
+const menuHoverTimer = ref<NodeJS.Timeout | null>(null)
+const isMenuOpen = ref(false)
+
+const openMenu = (menu: string) => {
+  if (menuHoverTimer.value) {
+    clearTimeout(menuHoverTimer.value)
+  }
+  
+  if (isMenuOpen.value || activeMenu.value) {
+    activeMenu.value = menu
+  }
+}
+
+const closeMenu = () => {
+  menuHoverTimer.value = setTimeout(() => {
+    if (isMenuOpen.value) {
+      activeMenu.value = null
+      isMenuOpen.value = false
+    }
+  }, 300)
+}
 
 const toggleMenu = (menu: string) => {
   if (activeMenu.value === menu) {
     activeMenu.value = null
+    isMenuOpen.value = false
   } else {
     activeMenu.value = menu
+    isMenuOpen.value = true
   }
 }
 
 const selectDirectory = async () => {
   activeMenu.value = null
+  isMenuOpen.value = false
   
   const result = await window.api?.dialog?.openDirectory()
   if (result && !result.canceled && result.filePaths.length > 0) {
@@ -116,11 +170,13 @@ const selectDirectory = async () => {
 
 const handleAction = (type: string, action: string) => {
   activeMenu.value = null
+  isMenuOpen.value = false
   emit('menu-action', type, action)
 }
 
 const showAbout = () => {
   activeMenu.value = null
+  isMenuOpen.value = false
   ElMessageBox.alert(
     '这是一个基于 Electron + Vue 的桌面应用程序',
     '关于',
@@ -132,23 +188,68 @@ const showAbout = () => {
 
 const toggleTheme = () => {
   activeMenu.value = null
+  isMenuOpen.value = false
   emit('theme-toggle')
   ElMessage.success(`已切换至${props.isDark ? '浅色' : '深色'}主题`)
+}
+
+const handleKeyboard = (event: KeyboardEvent) => {
+  const ctrl = event.ctrlKey || event.metaKey
+  const shift = event.shiftKey
+  const key = event.key.toLowerCase()
+  
+  if (ctrl && !shift && key === 'o') {
+    event.preventDefault()
+    selectDirectory()
+  } else if (ctrl && !shift && key === 'n') {
+    event.preventDefault()
+    handleAction('requirement', 'create')
+  } else if (ctrl && !shift && key === 'u') {
+    event.preventDefault()
+    handleAction('requirement', 'update')
+  } else if (ctrl && shift && key === 'n') {
+    event.preventDefault()
+    handleAction('design', 'create')
+  } else if (ctrl && shift && key === 'u') {
+    event.preventDefault()
+    handleAction('design', 'update')
+  } else if (ctrl && !shift && key === 't') {
+    event.preventDefault()
+    handleAction('task', 'create')
+  } else if (ctrl && shift && key === 't') {
+    event.preventDefault()
+    handleAction('task', 'update')
+  } else if (ctrl && !shift && key === 'e') {
+    event.preventDefault()
+    handleAction('task', 'execute')
+  } else if (ctrl && shift && key === 'd') {
+    event.preventDefault()
+    toggleTheme()
+  } else if (key === 'f1') {
+    event.preventDefault()
+    showAbout()
+  }
 }
 
 const handleClickOutside = (event: MouseEvent) => {
   const menuBar = document.querySelector('.menu-bar')
   if (menuBar && !menuBar.contains(event.target as Node)) {
     activeMenu.value = null
+    isMenuOpen.value = false
   }
 }
 
 onMounted(() => {
   document.addEventListener('click', handleClickOutside)
+  document.addEventListener('keydown', handleKeyboard)
 })
 
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
+  document.removeEventListener('keydown', handleKeyboard)
+  if (menuHoverTimer.value) {
+    clearTimeout(menuHoverTimer.value)
+  }
 })
 </script>
 
@@ -198,10 +299,33 @@ onUnmounted(() => {
   align-items: center;
   gap: 8px;
   transition: background-color 0.2s;
+  position: relative;
+}
+
+.menu-option > span:first-of-type {
+  flex: 1;
+}
+
+.menu-shortcut {
+  margin-left: auto;
+  font-size: 11px;
+  color: #999;
+  padding-left: 20px;
 }
 
 .menu-option:hover {
   background-color: #f5f5f5;
+}
+
+.menu-fade-enter-active,
+.menu-fade-leave-active {
+  transition: opacity 0.15s, transform 0.15s;
+}
+
+.menu-fade-enter-from,
+.menu-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-5px);
 }
 
 .menu-option:first-child {
@@ -236,5 +360,9 @@ onUnmounted(() => {
 
 .dark .menu-option:hover {
   background-color: #3a3a3a;
+}
+
+.dark .menu-shortcut {
+  color: #666;
 }
 </style>

@@ -18,6 +18,9 @@
   --wt-shadow: 0 2px 8px rgba(0, 0, 0, 0.32);
   --wt-font: 'Segoe UI', system-ui, -apple-system, sans-serif;
   --wt-font-mono: 'Cascadia Code', 'Cascadia Mono', Consolas, 'Courier New', monospace;
+  --wt-scrollbar-track: transparent;
+  --wt-scrollbar-thumb: rgba(255, 255, 255, 0.2);
+  --wt-scrollbar-thumb-hover: rgba(255, 255, 255, 0.3);
 }
 
 * {

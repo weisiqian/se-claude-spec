@@ -104,51 +104,59 @@ onUnmounted(() => {
   width: 100%;
   height: 100%;
   overflow: hidden;
+  background: var(--wt-bg-primary);
 }
 
 .main-content {
   flex-shrink: 0;
   overflow: hidden;
   display: flex;
+  background: var(--wt-bg-secondary);
+  border-radius: var(--wt-radius) 0 0 var(--wt-radius);
 }
 
 .side-panel {
   flex-shrink: 0;
   overflow: hidden;
   display: flex;
+  background: var(--wt-bg-primary);
+  border-radius: 0 var(--wt-radius) var(--wt-radius) 0;
 }
 
 .resize-handle {
-  width: 5px;
+  width: 6px;
   height: 100%;
   cursor: col-resize;
   position: relative;
   background-color: transparent;
-  transition: background-color 0.2s;
+  transition: all 0.15s;
   flex-shrink: 0;
 }
 
 .resize-handle:hover {
-  background-color: rgba(0, 122, 204, 0.1);
+  background-color: var(--wt-bg-hover);
 }
 
 .resize-handle.resizing {
-  background-color: rgba(0, 122, 204, 0.2);
+  background-color: var(--wt-bg-active);
 }
 
 .resize-line {
   position: absolute;
-  left: 2px;
-  top: 0;
-  bottom: 0;
+  left: 2.5px;
+  top: 20px;
+  bottom: 20px;
   width: 1px;
-  background-color: #e1e4e8;
+  background-color: var(--wt-border);
+  transition: all 0.15s;
 }
 
 .resize-handle:hover .resize-line,
 .resize-handle.resizing .resize-line {
-  background-color: #007acc;
+  background-color: var(--wt-accent);
   width: 2px;
-  left: 1.5px;
+  left: 2px;
+  top: 10px;
+  bottom: 10px;
 }
 </style>

@@ -3,11 +3,11 @@
     <!-- 应用图标和菜单 -->
     <div class="app-menu" @mouseenter="showMenu = true" @mouseleave="handleMenuLeave">
       <div class="app-icon">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-          <rect x="3" y="3" width="7" height="7" fill="currentColor" />
-          <rect x="14" y="3" width="7" height="7" fill="currentColor" />
-          <rect x="3" y="14" width="7" height="7" fill="currentColor" />
-          <rect x="14" y="14" width="7" height="7" fill="currentColor" />
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+          <rect x="3" y="3" width="7" height="7" fill="#ffffff" />
+          <rect x="14" y="3" width="7" height="7" fill="#ffffff" />
+          <rect x="3" y="14" width="7" height="7" fill="#ffffff" />
+          <rect x="14" y="14" width="7" height="7" fill="#ffffff" />
         </svg>
       </div>
       <transition name="menu-slide">
@@ -152,13 +152,13 @@
         <!-- 新建终端按钮组 -->
         <div class="new-terminal-group" @mouseleave="handleTerminalMenuLeave">
           <button class="new-terminal-button" @click="createNewTerminal('bash')" title="新建终端">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-              <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+              <path d="M12 5v14M5 12h14" stroke="#ffffff" stroke-width="2" stroke-linecap="round"/>
             </svg>
           </button>
           <button class="terminal-type-selector" @click="toggleTerminalMenu" @mouseenter="clearTerminalMenuTimer" title="选择终端类型">
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none">
-              <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+              <path d="M6 9l6 6 6-6" stroke="#ffffff" stroke-width="2" stroke-linecap="round"/>
             </svg>
           </button>
           <!-- 终端类型下拉菜单 -->
@@ -187,27 +187,27 @@
     </div>
 
     <!-- 可拖拽区域 -->
-    <div class="title-bar-drag-region"></div>
+    <div class="title-bar-drag-region" @dblclick="handleTitleBarDoubleClick"></div>
 
     <!-- 窗口控制按钮 -->
     <div class="title-bar-controls">
       <button class="title-bar-button minimize" @click="minimize" title="最小化">
-        <svg width="12" height="12" viewBox="0 0 12 12">
-          <rect x="2" y="6" width="8" height="1" fill="currentColor" />
+        <svg width="14" height="14" viewBox="0 0 12 12">
+          <rect x="2" y="6" width="8" height="1" fill="#ffffff" />
         </svg>
       </button>
       <button class="title-bar-button maximize" @click="maximize" :title="isMaximized ? '还原' : '最大化'">
-        <svg v-if="!isMaximized" width="12" height="12" viewBox="0 0 12 12">
-          <rect x="2" y="2" width="8" height="8" stroke="currentColor" stroke-width="1" fill="none" />
+        <svg v-if="!isMaximized" width="14" height="14" viewBox="0 0 12 12">
+          <rect x="2" y="2" width="8" height="8" stroke="#ffffff" stroke-width="1" fill="none" />
         </svg>
-        <svg v-else width="12" height="12" viewBox="0 0 12 12">
-          <rect x="2" y="3" width="6" height="6" stroke="currentColor" stroke-width="1" fill="none" />
-          <rect x="4" y="2" width="6" height="6" stroke="currentColor" stroke-width="1" fill="none" />
+        <svg v-else width="14" height="14" viewBox="0 0 12 12">
+          <rect x="2" y="3" width="6" height="6" stroke="#ffffff" stroke-width="1" fill="none" />
+          <rect x="4" y="2" width="6" height="6" stroke="#ffffff" stroke-width="1" fill="none" />
         </svg>
       </button>
       <button class="title-bar-button close" @click="close" title="关闭">
-        <svg width="12" height="12" viewBox="0 0 12 12">
-          <path d="M2.5 2.5L9.5 9.5M9.5 2.5L2.5 9.5" stroke="currentColor" stroke-width="1" stroke-linecap="round" />
+        <svg width="14" height="14" viewBox="0 0 12 12">
+          <path d="M2.5 2.5L9.5 9.5M9.5 2.5L2.5 9.5" stroke="#ffffff" stroke-width="1" stroke-linecap="round" />
         </svg>
       </button>
     </div>
@@ -396,6 +396,17 @@ const close = () => {
   }
 }
 
+const handleTitleBarDoubleClick = async () => {
+  if (window.api?.windowControls) {
+    // 先获取当前的实际状态
+    const currentMaximized = await window.api.windowControls.isMaximized()
+    // 然后切换状态
+    window.api.windowControls.maximize()
+    // 更新本地状态以确保同步
+    isMaximized.value = !currentMaximized
+  }
+}
+
 const updateMaximizeState = async () => {
   if (window.api?.windowControls) {
     isMaximized.value = await window.api.windowControls.isMaximized()
@@ -475,16 +486,17 @@ onUnmounted(() => {
 .title-bar {
   display: flex;
   align-items: center;
-  height: 32px;
-  background-color: #f0f0f0;
-  border-bottom: 1px solid #d0d0d0;
+  height: 38px;
+  background-color: var(--wt-bg-secondary);
   user-select: none;
-  transition: background-color 0.3s, border-color 0.3s;
+  position: relative;
+  z-index: 100;
+  /* border-radius: 8px 8px 0 0; */
+  transition: border-radius 0.2s;
 }
 
-.dark .title-bar {
-  background-color: #2d2d2d;
-  border-bottom-color: #404040;
+:global(.app.maximized) .title-bar {
+  border-radius: 0;
 }
 
 /* 应用菜单 */
@@ -500,15 +512,15 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
+  width: 48px;
   height: 100%;
-  color: var(--text-primary, #333);
+  color: #ffffff;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: background-color 0.15s;
 }
 
 .app-icon:hover {
-  background-color: var(--hover-bg, rgba(0, 0, 0, 0.05));
+  background-color: var(--wt-bg-hover);
 }
 
 /* 下拉菜单容器 */
@@ -523,28 +535,29 @@ onUnmounted(() => {
 
 /* 一级菜单 */
 .primary-menu {
-  width: 180px;
-  background: var(--bg-secondary, #fff);
-  border: 1px solid var(--border-primary, #e0e0e0);
-  border-radius: 0 0 6px 6px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  width: 200px;
+  background: var(--wt-bg-tertiary);
+  border: 1px solid var(--wt-border);
+  border-radius: var(--wt-radius);
+  box-shadow: var(--wt-shadow);
   overflow: hidden;
+  margin-top: 4px;
 }
 
 .primary-menu-item {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 12px;
+  gap: 10px;
+  padding: 8px 16px;
   font-size: 13px;
-  color: var(--text-primary, #333);
+  color: #ffffff;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: background-color 0.15s;
   position: relative;
 }
 
 .primary-menu-item:hover {
-  background-color: var(--hover-bg, rgba(0, 0, 0, 0.05));
+  background-color: var(--wt-bg-hover);
 }
 
 .menu-arrow {
@@ -556,12 +569,12 @@ onUnmounted(() => {
 /* 二级菜单 */
 .secondary-menu {
   position: fixed;
-  min-width: 260px;
-  background: var(--bg-secondary, #fff);
-  border: 1px solid var(--border-primary, #e0e0e0);
-  border-radius: 6px;
-  box-shadow: 2px 4px 12px rgba(0, 0, 0, 0.15);
-  margin-left: 2px;
+  min-width: 280px;
+  background: var(--wt-bg-tertiary);
+  border: 1px solid var(--wt-border);
+  border-radius: var(--wt-radius);
+  box-shadow: var(--wt-shadow);
+  margin-left: 4px;
 }
 
 .submenu-content {
@@ -571,18 +584,18 @@ onUnmounted(() => {
 .menu-item {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
+  gap: 10px;
+  padding: 8px 20px;
   font-size: 13px;
-  color: var(--text-primary, #333);
+  color: #ffffff;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: background-color 0.15s;
   position: relative;
   white-space: nowrap;
 }
 
 .menu-item:hover {
-  background-color: var(--hover-bg, rgba(0, 0, 0, 0.05));
+  background-color: var(--wt-bg-hover);
 }
 
 .menu-item > span:nth-child(2) {
@@ -591,75 +604,117 @@ onUnmounted(() => {
 }
 
 .menu-shortcut {
-  margin-left: 20px;
+  margin-left: auto;
+  padding-left: 20px;
   font-size: 11px;
-  color: var(--text-secondary, #999);
+  color: var(--wt-text-tertiary);
   white-space: nowrap;
+  opacity: 0.8;
 }
 
 /* 终端标签容器 */
 .terminal-tabs-container {
   display: flex;
   align-items: center;
+  flex: 1;
+  padding: 0 8px;
   -webkit-app-region: no-drag;
 }
 
 .terminal-tabs {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   height: 100%;
+  gap: 2px;
+  padding-bottom: 0;
 }
 
 .terminal-tab {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   padding: 0 12px;
-  height: 100%;
+  height: 34px;
+  margin: 4px 0 0 0;
   font-size: 13px;
-  color: var(--text-secondary, #666);
+  color: #999999;
   cursor: pointer;
-  border-right: 1px solid var(--border-primary, #e0e0e0);
-  transition: background-color 0.2s, color 0.2s;
+  border-radius: 6px 6px 0 0;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  background: transparent;
+  border: 1px solid transparent;
+  min-width: 120px;
+  max-width: 200px;
+}
+
+.terminal-tab::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--wt-bg-tab);
+  opacity: 0;
+  border-radius: 6px 6px 0 0;
+  transition: opacity 0.2s;
+  z-index: -1;
+}
+
+.terminal-tab:hover::before {
+  opacity: 0.5;
 }
 
 .terminal-tab:hover {
-  background-color: var(--hover-bg, rgba(0, 0, 0, 0.05));
+  color: #ffffff;
 }
 
 .terminal-tab.active {
-  color: var(--text-primary, #333);
-  background-color: #ffffff;
-  position: relative;
+  color: #ffffff;
+  background: var(--wt-bg-tab-active);
+  border: 1px solid transparent;
+  border-bottom: none;
+  margin-bottom: -1px;
+  padding-bottom: 1px;
+  z-index: 10;
 }
 
-.terminal-tab.active::after {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background-color: #0066cc;
-}
-
-.dark .terminal-tab.active {
-  color: #fff;
-  background-color: #1e1e1e;
-}
-
-.dark .terminal-tab.active::after {
-  background-color: #3b8eea;
+.terminal-tab span {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: inherit;
 }
 
 .tab-close {
-  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+  transition: all 0.15s;
+  opacity: 0;
+  margin-right: -4px;
+}
+
+.terminal-tab:hover .tab-close {
   opacity: 0.6;
-  transition: opacity 0.2s;
 }
 
 .tab-close:hover {
   opacity: 1;
+  background: var(--wt-bg-hover);
+}
+
+.terminal-tab.active .tab-close {
+  opacity: 0.4;
+}
+
+.terminal-tab.active:hover .tab-close {
+  opacity: 0.8;
 }
 
 /* 新建终端按钮组 */
@@ -668,6 +723,8 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   margin-left: 4px;
+  height: 30px;
+  margin: 4px 0;
   -webkit-app-region: no-drag;
 }
 
@@ -678,15 +735,35 @@ onUnmounted(() => {
   width: 28px;
   height: 28px;
   border: none;
-  border-radius: 4px 0 0 4px;
+  border-radius: 6px 0 0 6px;
   background: transparent;
-  color: var(--text-primary, #333);
+  color: var(--wt-text-secondary);
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: all 0.15s;
+  position: relative;
+}
+
+.new-terminal-button::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--wt-bg-hover);
+  border-radius: 6px 0 0 6px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.new-terminal-button:hover::before {
+  opacity: 1;
 }
 
 .new-terminal-button:hover {
-  background-color: var(--hover-bg, rgba(0, 0, 0, 0.05));
+  color: var(--wt-text-primary);
+}
+
+.new-terminal-button svg {
+  position: relative;
+  z-index: 1;
 }
 
 .terminal-type-selector {
@@ -696,16 +773,36 @@ onUnmounted(() => {
   width: 20px;
   height: 28px;
   border: none;
-  border-left: 1px solid var(--border-primary, #e0e0e0);
-  border-radius: 0 4px 4px 0;
+  border-left: 1px solid var(--wt-border);
+  border-radius: 0 6px 6px 0;
   background: transparent;
-  color: var(--text-primary, #333);
+  color: var(--wt-text-secondary);
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: all 0.15s;
+  position: relative;
+}
+
+.terminal-type-selector::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--wt-bg-hover);
+  border-radius: 0 6px 6px 0;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.terminal-type-selector:hover::before {
+  opacity: 1;
 }
 
 .terminal-type-selector:hover {
-  background-color: var(--hover-bg, rgba(0, 0, 0, 0.05));
+  color: var(--wt-text-primary);
+}
+
+.terminal-type-selector svg {
+  position: relative;
+  z-index: 1;
 }
 
 /* 终端类型菜单 */
@@ -713,41 +810,29 @@ onUnmounted(() => {
   position: absolute;
   top: 100%;
   left: 0;
-  min-width: 160px;
-  margin-top: 2px;
-  background: #fff;
-  border: 1px solid #e0e0e0;
-  border-radius: 4px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  min-width: 180px;
+  margin-top: 4px;
+  background: var(--wt-bg-tertiary);
+  border: 1px solid var(--wt-border);
+  border-radius: var(--wt-radius);
+  box-shadow: var(--wt-shadow);
   z-index: 999;
-}
-
-.dark .terminal-type-menu {
-  background: #2d2d2d;
-  border-color: #404040;
+  overflow: hidden;
 }
 
 .terminal-type-menu .menu-option {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
+  gap: 12px;
+  padding: 8px 16px;
   font-size: 13px;
-  color: #333;
+  color: var(--wt-text-primary);
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: background-color 0.15s;
 }
 
 .terminal-type-menu .menu-option:hover {
-  background-color: rgba(0, 0, 0, 0.05);
-}
-
-.dark .terminal-type-menu .menu-option {
-  color: #fff;
-}
-
-.dark .terminal-type-menu .menu-option:hover {
-  background-color: rgba(255, 255, 255, 0.1);
+  background-color: var(--wt-bg-hover);
 }
 
 .terminal-type-menu .menu-option:first-child {
@@ -760,10 +845,11 @@ onUnmounted(() => {
 
 .terminal-icon {
   display: inline-block;
-  width: 20px;
-  font-family: 'Consolas', 'Monaco', monospace;
-  font-weight: bold;
-  color: var(--text-secondary, #666);
+  width: 24px;
+  font-family: var(--wt-font-mono);
+  font-weight: 600;
+  color: var(--wt-accent);
+  text-align: center;
 }
 
 /* 拖拽区域 */
@@ -781,19 +867,19 @@ onUnmounted(() => {
 
 .title-bar-button {
   width: 46px;
-  height: 32px;
+  height: 38px;
   border: none;
   background: transparent;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  color: var(--text-primary, #333);
-  transition: background-color 0.1s ease;
+  color: #ffffff;
+  transition: background-color 0.15s;
 }
 
 .title-bar-button:hover {
-  background-color: rgba(0, 0, 0, 0.1);
+  background-color: var(--wt-bg-hover);
 }
 
 .title-bar-button.close:hover {
@@ -802,7 +888,7 @@ onUnmounted(() => {
 }
 
 .title-bar-button:active {
-  background-color: rgba(0, 0, 0, 0.2);
+  background-color: var(--wt-bg-active);
 }
 
 .title-bar-button.close:active {
@@ -833,16 +919,10 @@ onUnmounted(() => {
   transform: translateX(-10px);
 }
 
-/* 深色主题支持 */
-.dark .dropdown-menu {
-  --bg-secondary: #2d2d2d;
-  --border-primary: #404040;
-  --text-primary: #fff;
-  --text-secondary: #999;
-  --hover-bg: rgba(255, 255, 255, 0.1);
-}
-
-.dark .menu-shortcut {
-  color: #666;
+.menu-arrow {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--wt-text-tertiary);
+  opacity: 0.6;
 }
 </style>

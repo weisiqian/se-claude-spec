@@ -32,64 +32,46 @@ const activeTerminalId = ref<string>('')
 let currentTerminal: Terminal | null = null
 let resizeObserver: ResizeObserver | null = null
 
-// 定义浅色和深色主题
-const lightTheme = {
-  background: '#ffffff',
-  foreground: '#333333',
-  cursor: '#333333',
-  black: '#000000',
-  red: '#d14a14',
-  green: '#3a7f00',
-  yellow: '#b08800',
-  blue: '#0066cc',
-  magenta: '#b200b2',
-  cyan: '#008080',
-  white: '#bbbbbb',
-  brightBlack: '#555555',
-  brightRed: '#ff6b68',
-  brightGreen: '#4fc414',
-  brightYellow: '#ffd93d',
-  brightBlue: '#6cb8ff',
-  brightMagenta: '#ff6fff',
-  brightCyan: '#5fdfdf',
-  brightWhite: '#ffffff',
-  selectionBackground: '#b5d5ff',
-  selectionForeground: '#000000'
-}
-
-const darkTheme = {
-  background: '#1e1e1e',
+// Windows Terminal 风格主题
+const wtTheme = {
+  background: '#0c0c0c',
   foreground: '#cccccc',
   cursor: '#ffffff',
-  black: '#000000',
-  red: '#cd3131',
-  green: '#0dbc79',
-  yellow: '#e5e510',
-  blue: '#2472c8',
-  magenta: '#bc3fbc',
-  cyan: '#11a8cd',
-  white: '#e5e5e5',
-  brightBlack: '#666666',
-  brightRed: '#f14c4c',
-  brightGreen: '#23d18b',
-  brightYellow: '#f5f543',
-  brightBlue: '#3b8eea',
-  brightMagenta: '#d670d6',
-  brightCyan: '#29b8db',
-  brightWhite: '#e5e5e5',
+  cursorAccent: '#000000',
+  black: '#0c0c0c',
+  red: '#c50f1f',
+  green: '#13a10e',
+  yellow: '#c19c00',
+  blue: '#0037da',
+  magenta: '#881798',
+  cyan: '#3a96dd',
+  white: '#cccccc',
+  brightBlack: '#767676',
+  brightRed: '#e74856',
+  brightGreen: '#16c60c',
+  brightYellow: '#f9f1a5',
+  brightBlue: '#3b78ff',
+  brightMagenta: '#b4009e',
+  brightCyan: '#61d6d6',
+  brightWhite: '#f2f2f2',
   selectionBackground: '#264f78',
   selectionForeground: '#ffffff'
 }
 
 const createTerminal = async (id: string, type: string = 'bash') => {
   const terminal = new Terminal({
-    fontFamily: 'Consolas, "Courier New", monospace',
+    fontFamily: '"Cascadia Code", "Cascadia Mono", Consolas, "Courier New", monospace',
     fontSize: 14,
-    theme: props.isDark ? darkTheme : lightTheme,
+    theme: wtTheme,
     cursorBlink: true,
     cursorStyle: 'block',
-    scrollback: 1000,
-    convertEol: true
+    scrollback: 10000,
+    convertEol: true,
+    allowTransparency: true,
+    fontWeight: 400,
+    fontWeightBold: 600,
+    letterSpacing: 0,
+    lineHeight: 1.2
   })
 
   const fitAddon = new FitAddon()
@@ -248,48 +230,56 @@ defineExpose({
   height: 100%;
   display: flex;
   flex-direction: column;
-  background-color: #ffffff;
-  border-left: 1px solid #e1e4e8;
-  transition: background-color 0.3s, border-color 0.3s;
-}
-
-.terminal-container.dark {
-  background-color: #1e1e1e;
-  border-left-color: #333;
+  background: var(--wt-bg-primary);
+  position: relative;
+  overflow: hidden;
 }
 
 .terminal-content {
   flex: 1;
   overflow: hidden;
-  padding: 4px;
+  padding: 8px;
+  position: relative;
+  z-index: 2;
 }
 
 :deep(.xterm) {
   height: 100%;
+  background: transparent !important;
 }
 
 :deep(.xterm-viewport) {
-  background-color: #ffffff;
+  background: transparent !important;
 }
 
 :deep(.xterm-screen) {
-  padding: 4px;
+  padding: 0;
 }
 
 :deep(.xterm-viewport::-webkit-scrollbar) {
-  width: 10px;
+  width: 12px;
+  background: transparent;
 }
 
 :deep(.xterm-viewport::-webkit-scrollbar-track) {
-  background: #f6f8fa;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 6px;
 }
 
 :deep(.xterm-viewport::-webkit-scrollbar-thumb) {
-  background: #c1c4cb;
-  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
 }
 
 :deep(.xterm-viewport::-webkit-scrollbar-thumb:hover) {
-  background: #959da5;
+  background: rgba(255, 255, 255, 0.3);
+  background-clip: padding-box;
+}
+
+:deep(.xterm-viewport::-webkit-scrollbar-thumb:active) {
+  background: rgba(255, 255, 255, 0.4);
+  background-clip: padding-box;
 }
 </style>

@@ -14,6 +14,7 @@ const terminalRef = ref<any>(null)
 const terminals = ref<Array<{ id: string; label?: string }>>([])
 const activeTerminalId = ref<string>('')
 const updateInterval = ref<NodeJS.Timeout | null>(null)
+const isMaximized = ref(false)
 
 // 提供主题状态给子组件
 provide('isDark', isDark)
@@ -56,7 +57,7 @@ const updateTerminalState = () => {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
   // 恢复保存的项目路径
   const savedPath = localStorage.getItem('projectPath')
   if (savedPath) {
@@ -66,6 +67,14 @@ onMounted(() => {
   // 恢复主题设置
   const savedTheme = localStorage.getItem('theme')
   isDark.value = savedTheme === 'dark'
+  
+  // 检测窗口最大化状态
+  if (window.api?.windowControls) {
+    isMaximized.value = await window.api.windowControls.isMaximized()
+    window.api.windowControls.onMaximizedChange((maximized: boolean) => {
+      isMaximized.value = maximized
+    })
+  }
   
   // 定期更新终端状态
   updateInterval.value = setInterval(() => {
@@ -81,7 +90,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="app" :class="{ 'dark': isDark }">
+  <div class="app" :class="{ 'dark': isDark, 'maximized': isMaximized }">
     <TitleBar 
       @menu-action="handleMenuAction"
       @directory-selected="handleDirectorySelected"
@@ -122,22 +131,37 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  background: #f5f5f5;
+  background: var(--wt-bg-primary);
   overflow: hidden;
-  transition: background-color 0.3s;
+  position: relative;
+  border-radius: 8px;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.1);
 }
 
-.app.dark {
-  background: #1e1e1e;
+.app.maximized {
+  border-radius: 0;
+  box-shadow: none;
 }
 
 .content {
   flex: 1;
   display: flex;
   overflow: hidden;
+  background: var(--wt-bg-primary);
+  border-radius: 0 0 8px 8px;
+}
+
+.app.maximized .content {
+  border-radius: 0;
 }
 
 .full-terminal {
   flex: 1;
+  background: var(--wt-bg-primary);
+  border-radius: 0 0 8px 8px;
+}
+
+.app.maximized .full-terminal {
+  border-radius: 0;
 }
 </style>

@@ -188,26 +188,28 @@ watch([() => props.type, () => props.action], () => {
   height: 100%;
   display: flex;
   flex-direction: column;
-  background: #fff;
-  padding: 20px;
+  background: var(--wt-bg-secondary);
+  padding: 24px;
+  border-radius: var(--wt-radius);
 }
 
 .form-header {
-  margin-bottom: 20px;
+  margin-bottom: 24px;
   padding-bottom: 16px;
-  border-bottom: 1px solid #e1e4e8;
+  border-bottom: 1px solid var(--wt-border);
 }
 
 .form-header h3 {
   font-size: 18px;
   font-weight: 600;
-  color: #24292e;
+  color: var(--wt-text-primary);
   margin: 0 0 8px 0;
+  font-family: var(--wt-font);
 }
 
 .form-header p {
   font-size: 14px;
-  color: #586069;
+  color: var(--wt-text-secondary);
   margin: 0;
 }
 
@@ -237,35 +239,71 @@ watch([() => props.type, () => props.action], () => {
 .input-label {
   display: flex;
   align-items: center;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
 }
 
 .label-text {
   font-size: 14px;
   font-weight: 500;
-  color: #24292e;
+  color: var(--wt-text-primary);
 }
 
 .form-actions {
   display: flex;
   justify-content: flex-end;
   gap: 12px;
-  padding-top: 16px;
-  border-top: 1px solid #e1e4e8;
+  padding-top: 20px;
+  border-top: 1px solid var(--wt-border);
   margin-top: auto;
 }
 
 :deep(.el-input__wrapper) {
-  background-color: #fff;
-  border: 1px solid #d1d5db;
+  background-color: var(--wt-bg-tertiary);
+  border: 1px solid var(--wt-border);
+  border-radius: var(--wt-radius);
+  color: var(--wt-text-primary);
+}
+
+:deep(.el-input__inner) {
+  color: var(--wt-text-primary);
+  font-family: var(--wt-font);
 }
 
 :deep(.el-input__wrapper:hover) {
-  border-color: #86b7fe;
+  border-color: var(--wt-accent);
+  background-color: var(--wt-bg-hover);
 }
 
 :deep(.el-input__wrapper.is-focus) {
-  border-color: #0969da;
-  box-shadow: 0 0 0 3px rgba(9, 105, 218, 0.1);
+  border-color: var(--wt-accent);
+  box-shadow: 0 0 0 2px rgba(0, 120, 212, 0.2);
+}
+
+:deep(.el-button) {
+  border-radius: var(--wt-radius);
+  font-family: var(--wt-font);
+  transition: all 0.15s;
+}
+
+:deep(.el-button--default) {
+  background: var(--wt-bg-tertiary);
+  border: 1px solid var(--wt-border);
+  color: var(--wt-text-primary);
+}
+
+:deep(.el-button--default:hover) {
+  background: var(--wt-bg-hover);
+  border-color: var(--wt-accent);
+  color: var(--wt-accent);
+}
+
+:deep(.el-button--primary) {
+  background: var(--wt-accent);
+  border-color: var(--wt-accent);
+}
+
+:deep(.el-button--primary:hover) {
+  background: var(--wt-accent-hover);
+  border-color: var(--wt-accent-hover);
 }
 </style>

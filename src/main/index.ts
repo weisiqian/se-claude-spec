@@ -11,22 +11,27 @@ let terminalManager: TerminalManager
  * @returns {void}
  */
 function createWindow(): void {
-  // 创建主窗口，初始为隐藏，frame: false 以自定义窗口控制
+  // 创建主窗口，使用Windows Terminal标准尺寸
   const mainWindow = new BrowserWindow({
-    width: 1300,
-    height: 900,
+    width: 1200,
+    height: 740,
+    minWidth: 800,
+    minHeight: 600,
     show: false,
     frame: false,
+    transparent: true,
+    backgroundColor: '#00000000',
+    resizable: true,
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
-      sandbox: false
+      sandbox: false,
+      backgroundThrottling: false
     }
   })
 
-  // 当窗口准备好显示时，显示窗口并设置为最大化
+  // 当窗口准备好显示时，显示窗口（不默认最大化）
   mainWindow.on('ready-to-show', () => {
-    mainWindow.maximize() // 最大化窗口
     mainWindow.show()
     
     // 初始化终端管理器并设置主窗口

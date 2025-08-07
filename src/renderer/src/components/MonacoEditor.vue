@@ -476,41 +476,44 @@ onMounted(async () => {
     document.addEventListener('keydown', escKeyListener, false)
   }
   
-  // 配置自定义主题
-  monaco.editor.defineTheme('customLight', {
-    base: 'vs',
+  // 配置 Windows Terminal 风格主题
+  monaco.editor.defineTheme('wtDark', {
+    base: 'vs-dark',
     inherit: true,
     rules: [
-      // 通用规则
-      { token: 'comment', foreground: '6b7280', fontStyle: 'italic' },
-      { token: 'keyword', foreground: '7c3aed' },
-      { token: 'keyword.null', foreground: 'dc2626' },
-      { token: 'string', foreground: '059669' },
-      { token: 'string.invalid', foreground: 'dc2626' },
-      { token: 'string.escape', foreground: '0891b2' },
-      { token: 'string.link', foreground: '2563eb', fontStyle: 'underline' },
-      { token: 'number', foreground: '0969da' },
-      { token: 'delimiter', foreground: '374151' },
-      { token: 'delimiter.bracket', foreground: '374151' },
-      { token: 'delimiter.colon', foreground: '374151' },
-      { token: 'delimiter.comma', foreground: '374151' },
-      { token: 'variable', foreground: 'ea580c' },
+      { token: 'comment', foreground: '6a9955', fontStyle: 'italic' },
+      { token: 'keyword', foreground: '569cd6' },
+      { token: 'keyword.null', foreground: 'f44747' },
+      { token: 'string', foreground: 'ce9178' },
+      { token: 'string.invalid', foreground: 'f44747' },
+      { token: 'string.escape', foreground: 'd7ba7d' },
+      { token: 'string.link', foreground: '3794ff', fontStyle: 'underline' },
+      { token: 'number', foreground: 'b5cea8' },
+      { token: 'delimiter', foreground: 'd4d4d4' },
+      { token: 'delimiter.bracket', foreground: 'd4d4d4' },
+      { token: 'delimiter.colon', foreground: 'd4d4d4' },
+      { token: 'delimiter.comma', foreground: 'd4d4d4' },
+      { token: 'variable', foreground: '9cdcfe' },
       { token: 'strong', fontStyle: 'bold' },
       { token: 'emphasis', fontStyle: 'italic' }
     ],
     colors: {
-      'editor.background': '#ffffff',
-      'editor.foreground': '#1f2937',
-      'editor.lineHighlightBackground': '#f9fafb',
-      'editorLineNumber.foreground': '#9ca3af',
-      'editorLineNumber.activeForeground': '#4f46e5',
-      'editorCursor.foreground': '#4f46e5',
-      'editor.selectionBackground': '#ddd6fe',
-      'editor.inactiveSelectionBackground': '#e9e9fb',
-      'editorIndentGuide.background': '#e5e7eb',
-      'editorIndentGuide.activeBackground': '#d1d5db',
-      'editorBracketMatch.background': '#ddd6fe',
-      'editorBracketMatch.border': '#4f46e5'
+      'editor.background': '#1a1a1a',
+      'editor.foreground': '#cccccc',
+      'editor.lineHighlightBackground': '#252525',
+      'editorLineNumber.foreground': '#666666',
+      'editorLineNumber.activeForeground': '#cccccc',
+      'editorCursor.foreground': '#ffffff',
+      'editor.selectionBackground': '#264f78',
+      'editor.inactiveSelectionBackground': '#1e3a5f',
+      'editorIndentGuide.background': '#404040',
+      'editorIndentGuide.activeBackground': '#606060',
+      'editorBracketMatch.background': '#0078d433',
+      'editorBracketMatch.border': '#0078d4',
+      'scrollbar.shadow': '#000000',
+      'scrollbarSlider.background': '#79797966',
+      'scrollbarSlider.hoverBackground': '#646464b3',
+      'scrollbarSlider.activeBackground': '#bfbfbf66'
     }
   })
 
@@ -519,7 +522,7 @@ onMounted(async () => {
     editorInstance = monaco.editor.create(editorContainer.value, {
       value: props.modelValue || '',
       language: props.language,
-      theme: 'customLight',
+      theme: 'wtDark',
       readOnly: props.readOnly,
       minimap: {
         enabled: props.minimap
@@ -531,7 +534,7 @@ onMounted(async () => {
       automaticLayout: props.automaticLayout,
       scrollBeyondLastLine: false,
       renderWhitespace: 'none',
-      fontFamily: "'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', monospace",
+      fontFamily: "'Cascadia Code', 'Cascadia Mono', Consolas, 'Courier New', monospace",
       fontLigatures: true,
       padding: {
         top: 10,
@@ -751,15 +754,14 @@ defineExpose({
 /* 最大化遮罩层 */
 .maximized-overlay {
   position: fixed;
-  top: 32px; /* 留出标题栏高度 */
-  left: 240px; /* 留出左侧步骤条宽度 */
+  top: 38px; /* Windows Terminal 标题栏高度 */
+  left: 0;
   right: 0;
   bottom: 0;
-  background: #ffffff;
+  background: var(--wt-bg-primary);
   z-index: 9999;
   display: flex;
   flex-direction: column;
-  border-left: 1px solid #e4e4e7;
 }
 
 .maximized-container {
@@ -786,20 +788,20 @@ defineExpose({
 .monaco-editor-container {
   position: relative;
   width: 100%;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
+  border: 1px solid var(--wt-border);
+  border-radius: var(--wt-radius);
   overflow: hidden;
-  background: white;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  background: var(--wt-bg-tertiary);
+  transition: all 0.15s;
 }
 
 .monaco-editor-container:hover {
-  border-color: #d1d5db;
+  border-color: var(--wt-accent);
 }
 
 .monaco-editor-container:focus-within {
-  border-color: #4f46e5;
-  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+  border-color: var(--wt-accent);
+  box-shadow: 0 0 0 2px rgba(0, 120, 212, 0.2);
 }
 
 /* 工具栏 */
@@ -818,23 +820,22 @@ defineExpose({
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(255, 255, 255, 0.9);
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
+  background: var(--wt-bg-secondary);
+  border: 1px solid var(--wt-border);
+  border-radius: var(--wt-radius);
   cursor: pointer;
-  color: #6b7280;
-  transition: all 0.2s ease;
-  backdrop-filter: blur(4px);
+  color: var(--wt-text-secondary);
+  transition: all 0.15s;
 }
 
 .toolbar-btn:hover {
-  background: #ffffff;
-  border-color: #d1d5db;
-  color: #374151;
+  background: var(--wt-bg-hover);
+  border-color: var(--wt-accent);
+  color: var(--wt-text-primary);
 }
 
 .toolbar-btn:active {
-  background: #f9fafb;
+  background: var(--wt-bg-active);
 }
 
 .toolbar-btn svg {
@@ -852,8 +853,8 @@ defineExpose({
   top: 10px;
   left: 12px;
   right: 12px;
-  color: #9ca3af;
-  font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', monospace;
+  color: var(--wt-text-tertiary);
+  font-family: var(--wt-font-mono);
   font-size: 13px;
   line-height: 1.5;
   pointer-events: auto;
@@ -877,7 +878,7 @@ defineExpose({
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: opacity 0.2s ease;
+  transition: opacity 0.15s;
   opacity: 0;
 }
 
@@ -887,18 +888,19 @@ defineExpose({
 
 .resize-handle-bar {
   width: 40px;
-  height: 4px;
-  background: #d1d5db;
+  height: 3px;
+  background: var(--wt-border);
   border-radius: 2px;
-  transition: background-color 0.2s ease;
+  transition: all 0.15s;
 }
 
 .resize-handle:hover .resize-handle-bar {
-  background: #9ca3af;
+  background: var(--wt-accent);
+  width: 60px;
 }
 
 .resize-handle:active .resize-handle-bar {
-  background: #6b7280;
+  background: var(--wt-accent-hover);
 }
 
 /* 最大化提示 */
@@ -907,13 +909,14 @@ defineExpose({
   top: 50px;
   left: 50%;
   transform: translateX(-50%);
-  background: rgba(31, 41, 55, 0.9);
-  color: white;
+  background: var(--wt-bg-tertiary);
+  color: var(--wt-text-primary);
   padding: 8px 16px;
-  border-radius: 6px;
+  border: 1px solid var(--wt-border);
+  border-radius: var(--wt-radius);
   font-size: 14px;
   z-index: 10000;
-  backdrop-filter: blur(4px);
+  box-shadow: var(--wt-shadow);
 }
 
 /* 过渡动画 */
@@ -929,15 +932,15 @@ defineExpose({
 
 /* Monaco 编辑器全局样式覆盖 */
 :global(.monaco-editor .margin-view-overlays .line-numbers) {
-  color: #9ca3af !important;
+  color: var(--wt-text-tertiary) !important;
 }
 
 :global(.monaco-editor .current-line ~ .line-numbers) {
-  color: #4f46e5 !important;
+  color: var(--wt-text-primary) !important;
 }
 
-:global(.monaco-editor.vs .monaco-editor-background) {
-  background-color: #ffffff !important;
+:global(.monaco-editor.vs-dark .monaco-editor-background) {
+  background-color: transparent !important;
 }
 
 /* 拖动时的光标样式 */

@@ -71,7 +71,8 @@ const createTerminal = async (id: string, type: string = 'bash') => {
     fontWeight: 400,
     fontWeightBold: 600,
     letterSpacing: 0,
-    lineHeight: 1.2
+    lineHeight: 1.2,
+    allowProposedApi: true  // 允许使用实验性 API
   })
 
   const fitAddon = new FitAddon()
@@ -94,6 +95,18 @@ const createTerminal = async (id: string, type: string = 'bash') => {
   })
 
   window.electron.ipcRenderer.on(`terminal:data:${id}`, (_, data: string) => {
+    // 检测 clear 命令的 ANSI 转义序列
+    // \x1b[H\x1b[2J - clear screen and move cursor to home
+    // \x1b[2J - clear entire screen
+    // \x1b[3J - clear entire screen and scrollback buffer
+    // \x1bc - reset terminal
+    if (data.includes('\x1b[H\x1b[2J') || data.includes('\x1b[H\x1b[3J')) {
+      // Clear screen but keep scrollback
+      terminal.clear()
+    } else if (data.includes('\x1bc')) {
+      // Full reset
+      terminal.reset()
+    }
     terminal.write(data)
   })
 
@@ -184,11 +197,10 @@ const handleResize = () => {
 }
 
 // 监听主题变化并更新所有终端
-watch(() => props.isDark, (isDark) => {
-  const theme = isDark ? darkTheme : lightTheme
-  terminals.value.forEach(termInstance => {
-    termInstance.terminal.options.theme = theme
-  })
+watch(() => props.isDark, () => {
+  // 主题变化时可以在这里更新终端主题
+  // 当前使用的是固定的 Windows Terminal 主题，所以不需要切换
+  // 如果需要支持明暗主题切换，可以定义两套主题并在这里切换
 })
 
 onMounted(async () => {
@@ -256,30 +268,40 @@ defineExpose({
   padding: 0;
 }
 
+/* 终端滚动条样式 - 确保可以拖动 */
+:deep(.xterm-viewport) {
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+}
+
 :deep(.xterm-viewport::-webkit-scrollbar) {
-  width: 12px;
+  width: 14px;
   background: transparent;
 }
 
 :deep(.xterm-viewport::-webkit-scrollbar-track) {
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 7px;
+  margin: 4px 0;
 }
 
 :deep(.xterm-viewport::-webkit-scrollbar-thumb) {
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 6px;
-  border: 2px solid transparent;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 7px;
+  border: 3px solid transparent;
   background-clip: padding-box;
+  min-height: 40px;  /* 确保滚动条拇指有最小高度，便于拖动 */
 }
 
 :deep(.xterm-viewport::-webkit-scrollbar-thumb:hover) {
-  background: rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.25);
   background-clip: padding-box;
+  border: 2px solid transparent;
 }
 
 :deep(.xterm-viewport::-webkit-scrollbar-thumb:active) {
-  background: rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.35);
   background-clip: padding-box;
+  border: 2px solid transparent;
 }
 </style>

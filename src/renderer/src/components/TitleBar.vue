@@ -152,11 +152,25 @@
               <Close />
             </el-icon>
           </div>
+          
+          <!-- 新建终端按钮组 - 当不需要滚动时紧贴标签 -->
+          <div v-if="!needsScroll" class="new-terminal-group inline" ref="inlineTerminalGroup" @mouseenter="clearTerminalMenuTimer" @mouseleave="handleTerminalMenuLeave" @dblclick.stop>
+            <button class="new-terminal-button" @click.stop="createNewTerminal('bash')" title="新建终端">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path d="M12 5v14M5 12h14" stroke="#ffffff" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+            </button>
+            <button class="terminal-type-selector" @click.stop="toggleTerminalMenu" @mouseenter="handleTerminalSelectorHover" title="选择终端类型">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                <path d="M6 9l6 6 6-6" stroke="#ffffff" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+            </button>
+          </div>
         </div>
       </div>
       
-      <!-- 新建终端按钮组 -->
-      <div class="new-terminal-group" @mouseenter="clearTerminalMenuTimer" @mouseleave="handleTerminalMenuLeave" @dblclick.stop>
+      <!-- 新建终端按钮组 - 当需要滚动时固定在右侧 -->
+      <div v-if="needsScroll" class="new-terminal-group fixed" ref="fixedTerminalGroup" @mouseenter="clearTerminalMenuTimer" @mouseleave="handleTerminalMenuLeave" @dblclick.stop>
         <button class="new-terminal-button" @click.stop="createNewTerminal('bash')" title="新建终端">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
             <path d="M12 5v14M5 12h14" stroke="#ffffff" stroke-width="2" stroke-linecap="round"/>
@@ -167,27 +181,6 @@
             <path d="M6 9l6 6 6-6" stroke="#ffffff" stroke-width="2" stroke-linecap="round"/>
           </svg>
         </button>
-        <!-- 终端类型下拉菜单 -->
-        <transition name="menu-slide">
-          <div class="terminal-type-menu" v-show="showTerminalMenu" @mouseenter="clearTerminalMenuTimer" @mouseleave="handleTerminalMenuLeave">
-            <div class="menu-option" @click="createNewTerminal('bash')">
-              <span class="terminal-icon">$</span>
-              <span>Bash</span>
-            </div>
-            <div class="menu-option" @click="createNewTerminal('powershell')" v-if="isWindows">
-              <span class="terminal-icon">PS</span>
-              <span>PowerShell</span>
-            </div>
-            <div class="menu-option" @click="createNewTerminal('cmd')" v-if="isWindows">
-              <span class="terminal-icon">></span>
-              <span>Command Prompt</span>
-            </div>
-            <div class="menu-option" @click="createNewTerminal('zsh')" v-if="!isWindows">
-              <span class="terminal-icon">%</span>
-              <span>Zsh</span>
-            </div>
-          </div>
-        </transition>
       </div>
     </div>
 
@@ -213,6 +206,33 @@
         </svg>
       </button>
     </div>
+    
+    <!-- 终端类型下拉菜单 - 统一放在最外层 -->
+    <transition name="menu-slide">
+      <div 
+        class="terminal-type-menu-absolute" 
+        v-show="showTerminalMenu" 
+        :style="terminalMenuStyle"
+        @mouseenter="clearTerminalMenuTimer" 
+        @mouseleave="handleTerminalMenuLeave">
+        <div class="menu-option" @click="createNewTerminal('bash')">
+          <span class="terminal-icon">$</span>
+          <span>Bash</span>
+        </div>
+        <div class="menu-option" @click="createNewTerminal('powershell')" v-if="isWindows">
+          <span class="terminal-icon">PS</span>
+          <span>PowerShell</span>
+        </div>
+        <div class="menu-option" @click="createNewTerminal('cmd')" v-if="isWindows">
+          <span class="terminal-icon">></span>
+          <span>Command Prompt</span>
+        </div>
+        <div class="menu-option" @click="createNewTerminal('zsh')" v-if="!isWindows">
+          <span class="terminal-icon">%</span>
+          <span>Zsh</span>
+        </div>
+      </div>
+    </transition>
   </div>
 </template>
 
@@ -264,10 +284,14 @@ const isWindows = ref(false)
 const tabsContainer = ref<HTMLElement>()
 const tabsWrapper = ref<HTMLElement>()
 const scrollWrapper = ref<HTMLElement>()
+const inlineTerminalGroup = ref<HTMLElement>()
+const fixedTerminalGroup = ref<HTMLElement>()
 let resizeObserver: ResizeObserver | null = null
 let isDragging = ref(false)
 let startX = 0
 let scrollLeft = 0
+const needsScroll = ref(false)
+const terminalMenuStyle = ref({ top: '0px', left: '0px' })
 
 // 处理鼠标滚轮事件
 const handleWheel = (e: WheelEvent) => {
@@ -309,6 +333,28 @@ const handleMouseUp = () => {
   }
 }
 
+// 检查是否需要滚动
+const checkNeedsScroll = () => {
+  if (!scrollWrapper.value || !tabsWrapper.value) return
+  
+  // 获取标签和按钮组的总宽度
+  const tabs = tabsWrapper.value.querySelectorAll('.terminal-tab')
+  let totalTabsWidth = 0
+  tabs.forEach((tab) => {
+    totalTabsWidth += (tab as HTMLElement).offsetWidth + 2 // 加上 gap
+  })
+  
+  // 加上按钮组的宽度（约50px）
+  const buttonGroupWidth = 50
+  const totalContentWidth = totalTabsWidth + buttonGroupWidth + 20 // 额外留一些空间
+  
+  // 获取容器的可用宽度
+  const containerWidth = scrollWrapper.value.clientWidth
+  
+  // 判断是否需要滚动
+  needsScroll.value = totalContentWidth > containerWidth
+}
+
 // 确保激活的标签可见
 const ensureActiveTabVisible = () => {
   if (!scrollWrapper.value || !tabsWrapper.value) return
@@ -332,14 +378,17 @@ const ensureActiveTabVisible = () => {
 }
 
 // 监听 props 变化
-watch(() => props.terminals, (newTerminals) => {
+watch(() => props.terminals, async (newTerminals) => {
   terminals.value = newTerminals || []
+  await nextTick()
+  checkNeedsScroll()
 })
 
 watch(() => props.activeTerminalId, async (newId) => {
   activeTerminalId.value = newId || ''
   await nextTick()
   ensureActiveTabVisible()
+  checkNeedsScroll()
 })
 
 const handleAction = (type: string, action: string) => {
@@ -428,6 +477,19 @@ const toggleTerminalMenu = () => {
   showTerminalMenu.value = !showTerminalMenu.value
   if (showTerminalMenu.value) {
     clearTerminalMenuTimer()
+    updateTerminalMenuPosition()
+  }
+}
+
+const updateTerminalMenuPosition = () => {
+  // 获取按钮组的位置
+  const buttonGroup = needsScroll.value ? fixedTerminalGroup.value : inlineTerminalGroup.value
+  if (!buttonGroup) return
+  
+  const rect = buttonGroup.getBoundingClientRect()
+  terminalMenuStyle.value = {
+    top: `${rect.bottom + 4}px`,
+    left: `${rect.left}px`
   }
 }
 
@@ -441,6 +503,7 @@ const handleTerminalMenuLeave = () => {
 const handleTerminalSelectorHover = () => {
   showTerminalMenu.value = true
   clearTerminalMenuTimer()
+  updateTerminalMenuPosition()
 }
 
 
@@ -558,9 +621,23 @@ onMounted(async () => {
   document.addEventListener('mouseup', handleMouseUp)
   document.addEventListener('mouseleave', handleMouseUp)
   
-  // 初始化激活标签位置
+  // 初始化激活标签位置和滚动状态
   await nextTick()
   ensureActiveTabVisible()
+  checkNeedsScroll()
+  
+  // 监听容器大小变化
+  if (scrollWrapper.value) {
+    resizeObserver = new ResizeObserver(() => {
+      if (resizeDebounceTimer.value) {
+        clearTimeout(resizeDebounceTimer.value)
+      }
+      resizeDebounceTimer.value = setTimeout(() => {
+        checkNeedsScroll()
+      }, 100)
+    })
+    resizeObserver.observe(scrollWrapper.value)
+  }
 })
 
 onUnmounted(() => {
@@ -598,7 +675,7 @@ onUnmounted(() => {
   /* border-radius: 8px 8px 0 0; */
   transition: border-radius 0.2s;
   justify-content: space-between;
-  overflow: visible; /* 确保下拉菜单可以显示 */
+  overflow: visible !important; /* 强制确保下拉菜单可以显示 */
 }
 
 :global(.app.maximized) .title-bar {
@@ -730,6 +807,7 @@ onUnmounted(() => {
   height: 100%;
   position: relative;
   gap: 4px;
+  overflow: visible; /* 确保下拉菜单可见 */
 }
 
 /* 滚动容器 */
@@ -739,10 +817,11 @@ onUnmounted(() => {
   flex: 1;
   height: 100%;
   overflow-x: auto;
-  overflow-y: hidden;
+  overflow-y: visible; /* 改为visible让下拉菜单可以超出容器 */
   -webkit-app-region: no-drag;
   user-select: none;
   cursor: grab;
+  position: relative;
   
   /* 完全隐藏滚动条 */
   scrollbar-width: none; /* Firefox */
@@ -767,6 +846,8 @@ onUnmounted(() => {
   padding-bottom: 0;
   flex-wrap: nowrap;
   white-space: nowrap;
+  position: relative;
+  overflow: visible; /* 确保内联的下拉菜单可见 */
 }
 
 .terminal-tab {
@@ -874,6 +955,22 @@ onUnmounted(() => {
   flex-shrink: 0; /* 防止按钮组被压缩 */
 }
 
+/* 内联模式 - 紧贴标签 */
+.new-terminal-group.inline {
+  margin-left: 4px;
+  z-index: 100; /* 确保下拉菜单不被遮挡 */
+}
+
+/* 固定模式 - 固定在右侧 */
+.new-terminal-group.fixed {
+  position: sticky;
+  right: 0;
+  margin-left: 8px;
+  background: linear-gradient(to right, transparent, var(--wt-bg-secondary) 8px);
+  padding-left: 12px;
+  z-index: 100; /* 提高z-index，但低于下拉菜单 */
+}
+
 .new-terminal-button {
   display: flex;
   align-items: center;
@@ -954,11 +1051,9 @@ onUnmounted(() => {
   pointer-events: none;
 }
 
-/* 终端类型菜单 */
-.terminal-type-menu {
-  position: absolute;
-  top: calc(100% + 4px);
-  left: 0;
+/* 终端类型菜单 - 绝对定位版本 */
+.terminal-type-menu-absolute {
+  position: fixed;
   min-width: 180px;
   background: var(--wt-bg-tertiary);
   border: 1px solid var(--wt-border);
@@ -968,7 +1063,7 @@ onUnmounted(() => {
   overflow: hidden;
 }
 
-.terminal-type-menu .menu-option {
+.terminal-type-menu-absolute .menu-option {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -979,15 +1074,15 @@ onUnmounted(() => {
   transition: background-color 0.15s;
 }
 
-.terminal-type-menu .menu-option:hover {
+.terminal-type-menu-absolute .menu-option:hover {
   background-color: var(--wt-bg-hover);
 }
 
-.terminal-type-menu .menu-option:first-child {
+.terminal-type-menu-absolute .menu-option:first-child {
   border-radius: 4px 4px 0 0;
 }
 
-.terminal-type-menu .menu-option:last-child {
+.terminal-type-menu-absolute .menu-option:last-child {
   border-radius: 0 0 4px 4px;
 }
 

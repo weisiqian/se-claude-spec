@@ -28,6 +28,8 @@ const handleMenuAction = (type: string, action: string) => {
 const handleDirectorySelected = (path: string) => {
   projectPath.value = path
   localStorage.setItem('projectPath', path)
+  // 切换当前终端的工作目录
+  terminalRef.value?.changeDirectory(path)
 }
 
 const handleThemeToggle = () => {

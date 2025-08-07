@@ -225,12 +225,22 @@ onBeforeUnmount(() => {
   terminals.value = []
 })
 
+// 切换当前终端的工作目录
+const changeDirectory = async (path: string) => {
+  if (currentTerminal && activeTerminalId.value) {
+    // 发送 cd 命令到当前终端
+    const command = `cd "${path}"\r`
+    await window.electron.ipcRenderer.invoke('terminal:write', activeTerminalId.value, command)
+  }
+}
+
 // 暴露方法给父组件
 defineExpose({
   createNewTerminal,
   clearTerminal,
   closeTerminal,
   switchTerminal,
+  changeDirectory,
   terminals,
   activeTerminalId
 })

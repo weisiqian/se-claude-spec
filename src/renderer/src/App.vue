@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, provide } from 'vue'
-import TitleBar from './components/TitleBar.vue'
+import TitleBar from './components/TitleBar/index.vue'
 import StepForm from './components/StepForm.vue'
 import Terminal from './components/Terminal.vue'
 import ResizablePanel from './components/ResizablePanel.vue'

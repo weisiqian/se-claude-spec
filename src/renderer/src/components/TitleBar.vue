@@ -148,20 +148,20 @@
           </el-icon>
         </div>
         <!-- 新建终端按钮组 -->
-        <div class="new-terminal-group">
+        <div class="new-terminal-group" @mouseleave="handleTerminalMenuLeave">
           <button class="new-terminal-button" @click="createNewTerminal('bash')" title="新建终端">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
               <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
             </svg>
           </button>
-          <button class="terminal-type-selector" @click="toggleTerminalMenu" title="选择终端类型">
+          <button class="terminal-type-selector" @click="toggleTerminalMenu" @mouseenter="clearTerminalMenuTimer" title="选择终端类型">
             <svg width="10" height="10" viewBox="0 0 24 24" fill="none">
               <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
             </svg>
           </button>
           <!-- 终端类型下拉菜单 -->
           <transition name="menu-slide">
-            <div class="terminal-type-menu" v-show="showTerminalMenu">
+            <div class="terminal-type-menu" v-show="showTerminalMenu" @mouseenter="clearTerminalMenuTimer" @mouseleave="handleTerminalMenuLeave">
               <div class="menu-option" @click="createNewTerminal('bash')">
                 <span class="terminal-icon">$</span>
                 <span>Bash</span>
@@ -250,6 +250,7 @@ const showMenu = ref(false)
 const showTerminalMenu = ref(false)
 const activeSubmenu = ref<string | null>(null)
 const menuLeaveTimer = ref<NodeJS.Timeout | null>(null)
+const terminalMenuTimer = ref<NodeJS.Timeout | null>(null)
 const terminals = ref<Array<{ id: string; label?: string }>>(props.terminals || [])
 const activeTerminalId = ref(props.activeTerminalId || '')
 const isWindows = ref(false)
@@ -319,6 +320,22 @@ const createNewTerminal = (type: string) => {
 
 const toggleTerminalMenu = () => {
   showTerminalMenu.value = !showTerminalMenu.value
+  if (showTerminalMenu.value) {
+    clearTerminalMenuTimer()
+  }
+}
+
+const handleTerminalMenuLeave = () => {
+  terminalMenuTimer.value = setTimeout(() => {
+    showTerminalMenu.value = false
+  }, 300)
+}
+
+const clearTerminalMenuTimer = () => {
+  if (terminalMenuTimer.value) {
+    clearTimeout(terminalMenuTimer.value)
+    terminalMenuTimer.value = null
+  }
 }
 
 const switchTerminal = (id: string) => {
@@ -415,6 +432,9 @@ onUnmounted(() => {
   if (menuLeaveTimer.value) {
     clearTimeout(menuLeaveTimer.value)
   }
+  if (terminalMenuTimer.value) {
+    clearTimeout(terminalMenuTimer.value)
+  }
   document.removeEventListener('keydown', handleKeyboard)
 })
 </script>
@@ -424,10 +444,15 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   height: 32px;
-  background-color: var(--titlebar-bg, #f0f0f0);
-  border-bottom: 1px solid var(--titlebar-border, #d0d0d0);
+  background-color: #f0f0f0;
+  border-bottom: 1px solid #d0d0d0;
   user-select: none;
   transition: background-color 0.3s, border-color 0.3s;
+}
+
+.dark .title-bar {
+  background-color: #2d2d2d;
+  border-bottom-color: #404040;
 }
 
 /* 应用菜单 */
@@ -574,7 +599,27 @@ onUnmounted(() => {
 
 .terminal-tab.active {
   color: var(--text-primary, #333);
-  background-color: var(--hover-bg, rgba(0, 0, 0, 0.03));
+  background-color: #ffffff;
+  position: relative;
+}
+
+.terminal-tab.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background-color: #0066cc;
+}
+
+.dark .terminal-tab.active {
+  color: #fff;
+  background-color: #1e1e1e;
+}
+
+.dark .terminal-tab.active::after {
+  background-color: #3b8eea;
 }
 
 .tab-close {
@@ -637,14 +682,19 @@ onUnmounted(() => {
 .terminal-type-menu {
   position: absolute;
   top: 100%;
-  right: 0;
+  left: 0;
   min-width: 160px;
   margin-top: 2px;
-  background: var(--bg-secondary, #fff);
-  border: 1px solid var(--border-primary, #e0e0e0);
+  background: #fff;
+  border: 1px solid #e0e0e0;
   border-radius: 4px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-  z-index: 1000;
+  z-index: 999;
+}
+
+.dark .terminal-type-menu {
+  background: #2d2d2d;
+  border-color: #404040;
 }
 
 .terminal-type-menu .menu-option {
@@ -653,13 +703,21 @@ onUnmounted(() => {
   gap: 8px;
   padding: 8px 12px;
   font-size: 13px;
-  color: var(--text-primary, #333);
+  color: #333;
   cursor: pointer;
   transition: background-color 0.2s;
 }
 
 .terminal-type-menu .menu-option:hover {
-  background-color: var(--hover-bg, rgba(0, 0, 0, 0.05));
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.dark .terminal-type-menu .menu-option {
+  color: #fff;
+}
+
+.dark .terminal-type-menu .menu-option:hover {
+  background-color: rgba(255, 255, 255, 0.1);
 }
 
 .terminal-type-menu .menu-option:first-child {

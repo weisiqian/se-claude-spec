@@ -5,7 +5,9 @@
          @click="toggleMenu('project')">
       <span>项目</span>
       <transition name="menu-fade">
-        <div class="menu-dropdown" v-show="activeMenu === 'project'">
+        <div class="menu-dropdown" 
+             v-show="activeMenu === 'project'"
+             :style="{ top: menuTopPosition + 'px', left: menuLeftPosition + 'px' }">
           <div class="menu-option" @click="selectDirectory">
             <el-icon><FolderOpened /></el-icon>
             <span>选择目录</span>
@@ -20,7 +22,9 @@
          @click="toggleMenu('requirement')">
       <span>需求</span>
       <transition name="menu-fade">
-        <div class="menu-dropdown" v-show="activeMenu === 'requirement'">
+        <div class="menu-dropdown" 
+             v-show="activeMenu === 'requirement'"
+             :style="{ top: menuTopPosition + 'px', left: menuLeftPosition + 'px' }">
           <div class="menu-option" @click="handleAction('requirement', 'create')">
             <el-icon><DocumentAdd /></el-icon>
             <span>新建需求文档</span>
@@ -40,7 +44,9 @@
          @click="toggleMenu('design')">
       <span>设计</span>
       <transition name="menu-fade">
-        <div class="menu-dropdown" v-show="activeMenu === 'design'">
+        <div class="menu-dropdown" 
+             v-show="activeMenu === 'design'"
+             :style="{ top: menuTopPosition + 'px', left: menuLeftPosition + 'px' }">
           <div class="menu-option" @click="handleAction('design', 'create')">
             <el-icon><DocumentAdd /></el-icon>
             <span>新建设计文档</span>
@@ -60,7 +66,9 @@
          @click="toggleMenu('task')">
       <span>任务</span>
       <transition name="menu-fade">
-        <div class="menu-dropdown" v-show="activeMenu === 'task'">
+        <div class="menu-dropdown" 
+             v-show="activeMenu === 'task'"
+             :style="{ top: menuTopPosition + 'px', left: menuLeftPosition + 'px' }">
           <div class="menu-option" @click="handleAction('task', 'create')">
             <el-icon><DocumentAdd /></el-icon>
             <span>新建任务清单</span>
@@ -85,7 +93,9 @@
          @click="toggleMenu('help')">
       <span>帮助</span>
       <transition name="menu-fade">
-        <div class="menu-dropdown" v-show="activeMenu === 'help'">
+        <div class="menu-dropdown" 
+             v-show="activeMenu === 'help'"
+             :style="{ top: menuTopPosition + 'px', left: menuLeftPosition + 'px' }">
           <div class="menu-option" @click="showAbout">
             <el-icon><InfoFilled /></el-icon>
             <span>关于</span>
@@ -127,6 +137,8 @@ const emit = defineEmits<{
 const activeMenu = ref<string | null>(null)
 const menuHoverTimer = ref<NodeJS.Timeout | null>(null)
 const isMenuOpen = ref(false)
+const menuTopPosition = ref<number>(0)
+const menuLeftPosition = ref<number>(0)
 
 const openMenu = (menu: string) => {
   if (menuHoverTimer.value) {
@@ -135,7 +147,31 @@ const openMenu = (menu: string) => {
   
   if (isMenuOpen.value || activeMenu.value) {
     activeMenu.value = menu
+    updateMenuPosition(menu)
   }
+}
+
+const updateMenuPosition = (menu: string) => {
+  const menuItems = document.querySelectorAll('.menu-item')
+  menuItems.forEach((item) => {
+    const span = item.querySelector('span')
+    if (span && span.textContent === getMenuLabel(menu)) {
+      const rect = item.getBoundingClientRect()
+      menuTopPosition.value = rect.bottom
+      menuLeftPosition.value = rect.left
+    }
+  })
+}
+
+const getMenuLabel = (menu: string) => {
+  const labels: Record<string, string> = {
+    'project': '项目',
+    'requirement': '需求',
+    'design': '设计',
+    'task': '任务',
+    'help': '帮助'
+  }
+  return labels[menu] || ''
 }
 
 const closeMenu = () => {
@@ -154,6 +190,7 @@ const toggleMenu = (menu: string) => {
   } else {
     activeMenu.value = menu
     isMenuOpen.value = true
+    updateMenuPosition(menu)
   }
 }
 
@@ -279,9 +316,8 @@ onUnmounted(() => {
 }
 
 .menu-dropdown {
-  position: absolute;
-  top: 100%;
-  left: 0;
+  position: fixed;
+  left: auto;
   min-width: 180px;
   background: #fff;
   border: 1px solid #e0e0e0;

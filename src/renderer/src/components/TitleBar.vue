@@ -15,35 +15,35 @@
           <!-- 一级菜单 -->
           <div class="primary-menu">
             <div class="primary-menu-item" 
-                 @mouseenter="activeSubmenu = 'project'"
+                 @mouseenter="() => { activeSubmenu = 'project'; updateSubmenuPosition('project'); }"
                  @click="handlePrimaryClick('project')">
               <el-icon><FolderOpened /></el-icon>
               <span>项目</span>
               <el-icon class="menu-arrow"><ArrowRight /></el-icon>
             </div>
             <div class="primary-menu-item" 
-                 @mouseenter="activeSubmenu = 'requirement'"
+                 @mouseenter="() => { activeSubmenu = 'requirement'; updateSubmenuPosition('requirement'); }"
                  @click="handlePrimaryClick('requirement')">
               <el-icon><Document /></el-icon>
               <span>需求</span>
               <el-icon class="menu-arrow"><ArrowRight /></el-icon>
             </div>
             <div class="primary-menu-item" 
-                 @mouseenter="activeSubmenu = 'design'"
+                 @mouseenter="() => { activeSubmenu = 'design'; updateSubmenuPosition('design'); }"
                  @click="handlePrimaryClick('design')">
               <el-icon><Brush /></el-icon>
               <span>设计</span>
               <el-icon class="menu-arrow"><ArrowRight /></el-icon>
             </div>
             <div class="primary-menu-item" 
-                 @mouseenter="activeSubmenu = 'task'"
+                 @mouseenter="() => { activeSubmenu = 'task'; updateSubmenuPosition('task'); }"
                  @click="handlePrimaryClick('task')">
               <el-icon><Tickets /></el-icon>
               <span>任务</span>
               <el-icon class="menu-arrow"><ArrowRight /></el-icon>
             </div>
             <div class="primary-menu-item" 
-                 @mouseenter="activeSubmenu = 'help'"
+                 @mouseenter="() => { activeSubmenu = 'help'; updateSubmenuPosition('help'); }"
                  @click="handlePrimaryClick('help')">
               <el-icon><QuestionFilled /></el-icon>
               <span>帮助</span>
@@ -53,7 +53,9 @@
           
           <!-- 二级菜单 -->
           <transition name="submenu-slide">
-            <div class="secondary-menu" v-show="activeSubmenu">
+            <div class="secondary-menu" 
+                 v-show="activeSubmenu"
+                 :style="{ top: submenuTopPosition + 'px', left: submenuLeftPosition + 'px' }">
               <!-- 项目子菜单 -->
               <div v-if="activeSubmenu === 'project'" class="submenu-content">
                 <div class="menu-item" @click="selectDirectory">
@@ -251,6 +253,8 @@ const showTerminalMenu = ref(false)
 const activeSubmenu = ref<string | null>(null)
 const menuLeaveTimer = ref<NodeJS.Timeout | null>(null)
 const terminalMenuTimer = ref<NodeJS.Timeout | null>(null)
+const submenuTopPosition = ref<number>(0)
+const submenuLeftPosition = ref<number>(0)
 const terminals = ref<Array<{ id: string; label?: string }>>(props.terminals || [])
 const activeTerminalId = ref(props.activeTerminalId || '')
 const isWindows = ref(false)
@@ -272,6 +276,34 @@ const handleAction = (type: string, action: string) => {
 
 const handlePrimaryClick = (menu: string) => {
   activeSubmenu.value = menu
+  updateSubmenuPosition(menu)
+}
+
+const updateSubmenuPosition = (menu: string) => {
+  // 获取一级菜单容器
+  const primaryMenu = document.querySelector('.primary-menu') as HTMLElement
+  if (!primaryMenu) return
+  
+  // 获取对应的一级菜单项
+  const menuItems = primaryMenu.querySelectorAll('.primary-menu-item')
+  const menuLabels: Record<string, string> = {
+    'project': '项目',
+    'requirement': '需求',
+    'design': '设计',
+    'task': '任务',
+    'help': '帮助'
+  }
+  
+  menuItems.forEach((item) => {
+    const span = item.querySelector('span')
+    if (span && span.textContent === menuLabels[menu]) {
+      const rect = item.getBoundingClientRect()
+      const primaryRect = primaryMenu.getBoundingClientRect()
+      // 设置二级菜单的位置为一级菜单项的顶部对齐，左侧为一级菜单的右侧
+      submenuTopPosition.value = rect.top
+      submenuLeftPosition.value = primaryRect.right + 2
+    }
+  })
 }
 
 const handleMenuLeave = () => {
@@ -523,13 +555,11 @@ onUnmounted(() => {
 
 /* 二级菜单 */
 .secondary-menu {
-  position: absolute;
-  left: 180px;
-  top: 0;
+  position: fixed;
   min-width: 260px;
   background: var(--bg-secondary, #fff);
   border: 1px solid var(--border-primary, #e0e0e0);
-  border-radius: 0 6px 6px 6px;
+  border-radius: 6px;
   box-shadow: 2px 4px 12px rgba(0, 0, 0, 0.15);
   margin-left: 2px;
 }

@@ -1,6 +1,10 @@
 import { ipcMain } from 'electron'
 import { spawn, IPty } from 'node-pty'
 import os from 'os'
+import { exec } from 'child_process'
+import { promisify } from 'util'
+
+const execAsync = promisify(exec)
 
 export class TerminalManager {
   private terminals: Map<string, IPty> = new Map()
@@ -15,8 +19,22 @@ export class TerminalManager {
   }
 
   private setupIPC() {
-    ipcMain.handle('terminal:create', (_, id: string) => {
-      return this.createTerminal(id)
+    ipcMain.handle('terminal:create', (_, id: string, cwd?: string, shellType?: string) => {
+      return this.createTerminal(id, cwd, shellType)
+    })
+    
+    ipcMain.handle('terminal:get-username', async () => {
+      try {
+        if (process.platform === 'win32') {
+          const { stdout } = await execAsync('echo %USERNAME%')
+          return stdout.trim()
+        } else {
+          return os.userInfo().username
+        }
+      } catch (error) {
+        console.error('Failed to get username:', error)
+        return 'user'
+      }
     })
 
     ipcMain.handle('terminal:write', (_, id: string, data: string) => {
@@ -38,17 +56,48 @@ export class TerminalManager {
     })
   }
 
-  private createTerminal(id: string): boolean {
+  private createTerminal(id: string, cwd?: string, shellType: string = 'bash'): boolean {
     if (this.terminals.has(id)) {
       return false
     }
 
-    const shell = process.platform === 'win32' ? 'powershell.exe' : process.env.SHELL || '/bin/bash'
+    // 根据 shellType 选择不同的 shell
+    let shell: string
+    if (process.platform === 'win32') {
+      switch (shellType) {
+        case 'powershell':
+          shell = 'powershell.exe'
+          break
+        case 'cmd':
+          shell = 'cmd.exe'
+          break
+        case 'bash':
+          // Windows 上可能有 Git Bash 或 WSL
+          shell = 'bash.exe'
+          break
+        default:
+          shell = 'powershell.exe'
+      }
+    } else {
+      switch (shellType) {
+        case 'zsh':
+          shell = '/bin/zsh'
+          break
+        case 'bash':
+          shell = '/bin/bash'
+          break
+        case 'sh':
+          shell = '/bin/sh'
+          break
+        default:
+          shell = process.env.SHELL || '/bin/bash'
+      }
+    }
     const terminal = spawn(shell, [], {
       name: 'xterm-color',
       cols: 80,
       rows: 30,
-      cwd: process.cwd(),
+      cwd: cwd || os.homedir(),
       env: process.env as any
     })
 

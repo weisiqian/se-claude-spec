@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow, ipcMain, session } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, session, dialog } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
@@ -126,6 +126,19 @@ app.whenReady().then(() => {
   ipcMain.handle('window-is-maximized', () => {
     const window = BrowserWindow.getFocusedWindow()
     return window ? window.isMaximized() : false
+  })
+
+  // 打开目录选择对话框
+  ipcMain.handle('dialog:open-directory', async () => {
+    const window = BrowserWindow.getFocusedWindow()
+    if (!window) return { canceled: true, filePaths: [] }
+    
+    const result = await dialog.showOpenDialog(window, {
+      properties: ['openDirectory'],
+      title: '选择项目目录'
+    })
+    
+    return result
   })
 
   // 创建主窗口（默认最大化）

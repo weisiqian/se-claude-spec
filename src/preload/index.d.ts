@@ -12,6 +12,12 @@ declare global {
         onMaximizedChange: (callback: (isMaximized: boolean) => void) => void
         removeMaximizedListener: () => void
       }
+      dialog: {
+        openDirectory: () => Promise<{
+          canceled: boolean
+          filePaths: string[]
+        }>
+      }
     }
   }
 }

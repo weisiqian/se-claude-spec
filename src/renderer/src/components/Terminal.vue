@@ -1,64 +1,28 @@
 <template>
-  <div class="terminal-container" ref="terminalContainer">
-    <div class="terminal-header">
-      <span class="terminal-title">终端</span>
-      <div class="terminal-actions">
-        <el-button
-          :icon="Plus"
-          size="small"
-          circle
-          @click="createNewTerminal"
-          title="新建终端"
-        />
-        <el-button
-          :icon="Delete"
-          size="small"
-          circle
-          @click="clearTerminal"
-          title="清空"
-        />
-        <el-button
-          :icon="Close"
-          size="small"
-          circle
-          @click="closeTerminal"
-          title="关闭"
-        />
-      </div>
-    </div>
-    <div class="terminal-tabs" v-if="terminals.length > 1">
-      <div
-        v-for="(term, index) in terminals"
-        :key="term.id"
-        :class="['terminal-tab', { active: activeTerminalId === term.id }]"
-        @click="switchTerminal(term.id)"
-      >
-        <span>终端 {{ index + 1 }}</span>
-        <el-icon
-          class="tab-close"
-          @click.stop="closeTerminal(term.id)"
-          v-if="terminals.length > 1"
-        >
-          <Close />
-        </el-icon>
-      </div>
-    </div>
+  <div class="terminal-container" :class="{ 'dark': isDark }" ref="terminalContainer">
     <div class="terminal-content" ref="terminalContent"></div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { ref, onMounted, onBeforeUnmount, nextTick, watch, defineExpose } from 'vue'
 import { Terminal } from 'xterm'
 import { FitAddon } from 'xterm-addon-fit'
 import { WebLinksAddon } from 'xterm-addon-web-links'
-import { Plus, Delete, Close } from '@element-plus/icons-vue'
 import 'xterm/css/xterm.css'
+
+const props = defineProps<{
+  projectPath?: string | null
+  isDark?: boolean
+}>()
 
 interface TerminalInstance {
   id: string
   terminal: Terminal
   fitAddon: FitAddon
+  label?: string
+  type?: string
+  username?: string
 }
 
 const terminalContainer = ref<HTMLElement>()
@@ -68,33 +32,60 @@ const activeTerminalId = ref<string>('')
 let currentTerminal: Terminal | null = null
 let resizeObserver: ResizeObserver | null = null
 
-const createTerminal = async (id: string) => {
+// 定义浅色和深色主题
+const lightTheme = {
+  background: '#ffffff',
+  foreground: '#333333',
+  cursor: '#333333',
+  black: '#000000',
+  red: '#d14a14',
+  green: '#3a7f00',
+  yellow: '#b08800',
+  blue: '#0066cc',
+  magenta: '#b200b2',
+  cyan: '#008080',
+  white: '#bbbbbb',
+  brightBlack: '#555555',
+  brightRed: '#ff6b68',
+  brightGreen: '#4fc414',
+  brightYellow: '#ffd93d',
+  brightBlue: '#6cb8ff',
+  brightMagenta: '#ff6fff',
+  brightCyan: '#5fdfdf',
+  brightWhite: '#ffffff',
+  selectionBackground: '#b5d5ff',
+  selectionForeground: '#000000'
+}
+
+const darkTheme = {
+  background: '#1e1e1e',
+  foreground: '#cccccc',
+  cursor: '#ffffff',
+  black: '#000000',
+  red: '#cd3131',
+  green: '#0dbc79',
+  yellow: '#e5e510',
+  blue: '#2472c8',
+  magenta: '#bc3fbc',
+  cyan: '#11a8cd',
+  white: '#e5e5e5',
+  brightBlack: '#666666',
+  brightRed: '#f14c4c',
+  brightGreen: '#23d18b',
+  brightYellow: '#f5f543',
+  brightBlue: '#3b8eea',
+  brightMagenta: '#d670d6',
+  brightCyan: '#29b8db',
+  brightWhite: '#e5e5e5',
+  selectionBackground: '#264f78',
+  selectionForeground: '#ffffff'
+}
+
+const createTerminal = async (id: string, type: string = 'bash') => {
   const terminal = new Terminal({
     fontFamily: 'Consolas, "Courier New", monospace',
     fontSize: 14,
-    theme: {
-      background: '#ffffff',
-      foreground: '#333333',
-      cursor: '#333333',
-      black: '#000000',
-      red: '#d14a14',
-      green: '#3a7f00',
-      yellow: '#b08800',
-      blue: '#0066cc',
-      magenta: '#b200b2',
-      cyan: '#008080',
-      white: '#bbbbbb',
-      brightBlack: '#555555',
-      brightRed: '#ff6b68',
-      brightGreen: '#4fc414',
-      brightYellow: '#ffd93d',
-      brightBlue: '#6cb8ff',
-      brightMagenta: '#ff6fff',
-      brightCyan: '#5fdfdf',
-      brightWhite: '#ffffff',
-      selectionBackground: '#b5d5ff',
-      selectionForeground: '#000000'
-    },
+    theme: props.isDark ? darkTheme : lightTheme,
     cursorBlink: true,
     cursorStyle: 'block',
     scrollback: 1000,
@@ -107,7 +98,10 @@ const createTerminal = async (id: string) => {
   const webLinksAddon = new WebLinksAddon()
   terminal.loadAddon(webLinksAddon)
 
-  await window.electron.ipcRenderer.invoke('terminal:create', id)
+  // 获取当前用户名
+  const username = await window.electron.ipcRenderer.invoke('terminal:get-username')
+  
+  await window.electron.ipcRenderer.invoke('terminal:create', id, props.projectPath || undefined, type)
 
   terminal.onData((data) => {
     window.electron.ipcRenderer.invoke('terminal:write', id, data)
@@ -132,14 +126,18 @@ const createTerminal = async (id: string) => {
     }
   })
 
-  return { id, terminal, fitAddon }
+  // 生成终端标签
+  const label = `${username || 'user'}:${type}`
+  
+  return { id, terminal, fitAddon, label, type, username }
 }
 
-const createNewTerminal = async () => {
+const createNewTerminal = async (type: string = 'bash') => {
   const id = `terminal-${Date.now()}`
-  const termInstance = await createTerminal(id)
+  const termInstance = await createTerminal(id, type)
   terminals.value.push(termInstance)
   await switchTerminal(id)
+  return termInstance
 }
 
 const switchTerminal = async (id: string) => {
@@ -203,6 +201,14 @@ const handleResize = () => {
   })
 }
 
+// 监听主题变化并更新所有终端
+watch(() => props.isDark, (isDark) => {
+  const theme = isDark ? darkTheme : lightTheme
+  terminals.value.forEach(termInstance => {
+    termInstance.terminal.options.theme = theme
+  })
+})
+
 onMounted(async () => {
   await createNewTerminal()
   
@@ -224,6 +230,16 @@ onBeforeUnmount(() => {
   
   terminals.value = []
 })
+
+// 暴露方法给父组件
+defineExpose({
+  createNewTerminal,
+  clearTerminal,
+  closeTerminal,
+  switchTerminal,
+  terminals,
+  activeTerminalId
+})
 </script>
 
 <style scoped>
@@ -234,82 +250,12 @@ onBeforeUnmount(() => {
   flex-direction: column;
   background-color: #ffffff;
   border-left: 1px solid #e1e4e8;
+  transition: background-color 0.3s, border-color 0.3s;
 }
 
-.terminal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 8px 12px;
-  background-color: #f6f8fa;
-  border-bottom: 1px solid #e1e4e8;
-  min-height: 35px;
-}
-
-.terminal-title {
-  color: #24292e;
-  font-size: 13px;
-  font-weight: 500;
-}
-
-.terminal-actions {
-  display: flex;
-  gap: 4px;
-}
-
-.terminal-actions :deep(.el-button) {
-  width: 24px;
-  height: 24px;
-  padding: 0;
-  background: transparent;
-  border: none;
-  color: #586069;
-}
-
-.terminal-actions :deep(.el-button:hover) {
-  background-color: #e1e4e8;
-  color: #24292e;
-}
-
-.terminal-tabs {
-  display: flex;
-  background-color: #f6f8fa;
-  border-bottom: 1px solid #e1e4e8;
-  overflow-x: auto;
-  min-height: 30px;
-}
-
-.terminal-tab {
-  display: flex;
-  align-items: center;
-  padding: 4px 12px;
-  color: #586069;
-  font-size: 12px;
-  cursor: pointer;
-  border-right: 1px solid #e1e4e8;
-  white-space: nowrap;
-  user-select: none;
-}
-
-.terminal-tab:hover {
-  background-color: #e1e4e8;
-}
-
-.terminal-tab.active {
-  background-color: #ffffff;
-  color: #24292e;
-  font-weight: 500;
-}
-
-.tab-close {
-  margin-left: 8px;
-  font-size: 14px;
-  cursor: pointer;
-  opacity: 0.6;
-}
-
-.tab-close:hover {
-  opacity: 1;
+.terminal-container.dark {
+  background-color: #1e1e1e;
+  border-left-color: #333;
 }
 
 .terminal-content {

@@ -14,6 +14,9 @@ const api = {
     removeMaximizedListener: () => {
       ipcRenderer.removeAllListeners('window-maximized')
     }
+  },
+  dialog: {
+    openDirectory: () => ipcRenderer.invoke('dialog:open-directory')
   }
 }
 

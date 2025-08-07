@@ -1,6 +1,5 @@
 import { ipcMain } from 'electron'
 import { spawn, ChildProcess } from 'child_process'
-import os from 'os'
 
 export class SimpleTerminalManager {
   private terminals: Map<string, ChildProcess> = new Map()

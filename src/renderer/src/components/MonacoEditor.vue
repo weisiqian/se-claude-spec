@@ -1,5 +1,12 @@
 <template>
   <div class="monaco-editor-wrapper">
+    <!-- 预览模式 -->
+    <div v-if="showPreviewMode && !isMaximized" 
+         class="preview-mode-container" 
+         :style="{ height: currentHeight + 'px' }"
+         @contextmenu.prevent="handlePreviewContextMenu">
+      <div class="markdown-preview-wrapper" v-html="renderedMarkdown"></div>
+    </div>
     <!-- 右键菜单 -->
     <transition name="context-menu">
       <div 
@@ -18,7 +25,7 @@
           <span class="menu-text">复制</span>
           <span class="menu-shortcut">Ctrl+C</span>
         </div>
-        <div class="context-menu-item" @click="handleCut">
+        <div class="context-menu-item" @click="handleCut" :class="{ 'disabled': showPreviewMode }">
           <span class="menu-icon">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <circle cx="6" cy="6" r="3"/>
@@ -31,7 +38,7 @@
           <span class="menu-text">剪切</span>
           <span class="menu-shortcut">Ctrl+X</span>
         </div>
-        <div class="context-menu-item" @click="handlePaste">
+        <div class="context-menu-item" @click="handlePaste" :class="{ 'disabled': showPreviewMode }">
           <span class="menu-icon">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
@@ -55,6 +62,21 @@
           <span class="menu-text">全选</span>
           <span class="menu-shortcut">Ctrl+A</span>
         </div>
+        <div class="context-menu-divider" v-if="props.enablePreview && props.language === 'markdown'"></div>
+        <div class="context-menu-item" @click="togglePreviewMode" v-if="props.enablePreview && props.language === 'markdown'">
+          <span class="menu-icon">
+            <svg v-if="!showPreviewMode" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+            <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+              <line x1="1" y1="1" x2="23" y2="23"/>
+            </svg>
+          </span>
+          <span class="menu-text">{{ showPreviewMode ? '退出预览' : '预览 Markdown' }}</span>
+          <span class="menu-shortcut">{{ showPreviewMode ? 'ESC' : 'Ctrl+Shift+V' }}</span>
+        </div>
         <div class="context-menu-divider"></div>
         <div class="context-menu-item" @click="toggleMaximizeFromMenu">
           <span class="menu-icon">
@@ -74,22 +96,34 @@
     <!-- 最大化遮罩层 -->
     <div v-if="isMaximized" class="maximized-overlay">
       <div class="maximized-container">
-        <!-- 工具栏 -->
-        <div class="editor-toolbar maximized-toolbar">
-          <!-- 自定义工具栏插槽 -->
-          <slot name="maximized-toolbar"></slot>
-          <button 
-            class="toolbar-btn maximize-btn"
-            @click="toggleMaximize"
-            title="退出最大化 (ESC)"
-          >
-            <svg viewBox="0 0 24 24" width="16" height="16">
-              <path fill="currentColor" d="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z"/>
-            </svg>
-          </button>
+        <!-- 最大化预览模式 -->
+        <div v-if="showPreviewMode" 
+             class="maximized-preview-mode"
+             @contextmenu.prevent="handlePreviewContextMenu">
+          <div class="maximized-preview-content">
+            <div class="markdown-preview-wrapper" v-html="renderedMarkdown"></div>
+          </div>
         </div>
         
-        <div ref="maximizedEditorContainer" class="editor-instance maximized-editor-instance"></div>
+        <!-- 最大化编辑器 -->
+        <div v-show="!showPreviewMode" style="width: 100%; height: 100%; display: flex; flex-direction: column;">
+          <!-- 工具栏 -->
+          <div class="editor-toolbar maximized-toolbar">
+            <!-- 自定义工具栏插槽 -->
+            <slot name="maximized-toolbar"></slot>
+            <button 
+              class="toolbar-btn maximize-btn"
+              @click="toggleMaximize"
+              title="退出最大化 (ESC)"
+            >
+              <svg viewBox="0 0 24 24" width="16" height="16">
+                <path fill="currentColor" d="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z"/>
+              </svg>
+            </button>
+          </div>
+          
+          <div ref="maximizedEditorContainer" class="editor-instance maximized-editor-instance"></div>
+        </div>
         
         <!-- 最大化时的退出提示 -->
         <transition name="fade">
@@ -105,7 +139,7 @@
       class="monaco-editor-container" 
       :style="{ height: currentHeight + 'px' }"
       ref="containerRef"
-      v-show="!isMaximized"
+      v-show="!isMaximized && !showPreviewMode"
     >
       <!-- 工具栏 -->
       <div class="editor-toolbar">
@@ -149,6 +183,8 @@ import { ref, onMounted, onUnmounted, watch, computed, nextTick } from 'vue'
 // 只导入核心功能，不导入语言支持
 import * as monaco from 'monaco-editor/esm/vs/editor/editor.api'
 import type { editor } from 'monaco-editor'
+import { renderMarkdown } from '@renderer/utils/markdownRenderer'
+import '@renderer/styles/markdown.css'
 
 // 配置 Monaco 环境 - 完全禁用 workers
 self.MonacoEnvironment = {
@@ -180,6 +216,7 @@ interface Props {
   tabSize?: number
   automaticLayout?: boolean
   enableMaximize?: boolean
+  enablePreview?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -196,7 +233,8 @@ const props = withDefaults(defineProps<Props>(), {
   placeholder: '',
   tabSize: 2,
   automaticLayout: true,
-  enableMaximize: true
+  enableMaximize: true,
+  enablePreview: false
 })
 
 const emit = defineEmits<{
@@ -207,6 +245,7 @@ const emit = defineEmits<{
   'resize': [height: number]
   'maximize': [isMaximized: boolean]
   'contextmenu': [event: { x: number, y: number, position: any }]
+  'preview': []
 }>()
 
 const editorContainer = ref<HTMLElement>()
@@ -215,6 +254,7 @@ const containerRef = ref<HTMLElement>()
 let editorInstance: editor.IStandaloneCodeEditor | null = null
 let maximizedEditorInstance: editor.IStandaloneCodeEditor | null = null
 const showPlaceholder = ref(false)
+const showPreviewMode = ref(false)
 
 // 右键菜单相关
 const showContextMenu = ref(false)
@@ -441,15 +481,25 @@ const hideContextMenu = () => {
 
 // 右键菜单操作
 const handleCopy = () => {
-  const editor = isMaximized.value ? maximizedEditorInstance : editorInstance
-  if (editor) {
-    editor.focus()
+  if (showPreviewMode.value) {
+    // 预览模式下直接复制选中的文本
     document.execCommand('copy')
+  } else {
+    const editor = isMaximized.value ? maximizedEditorInstance : editorInstance
+    if (editor) {
+      editor.focus()
+      document.execCommand('copy')
+    }
   }
   hideContextMenu()
 }
 
 const handleCut = () => {
+  if (showPreviewMode.value) {
+    // 预览模式下不允许剪切
+    hideContextMenu()
+    return
+  }
   const editor = isMaximized.value ? maximizedEditorInstance : editorInstance
   if (editor) {
     editor.focus()
@@ -459,6 +509,11 @@ const handleCut = () => {
 }
 
 const handlePaste = async () => {
+  if (showPreviewMode.value) {
+    // 预览模式下不允许粘贴
+    hideContextMenu()
+    return
+  }
   const editor = isMaximized.value ? maximizedEditorInstance : editorInstance
   if (editor) {
     editor.focus()
@@ -479,14 +534,28 @@ const handlePaste = async () => {
 }
 
 const handleSelectAll = () => {
-  const editor = isMaximized.value ? maximizedEditorInstance : editorInstance
-  if (editor) {
-    const model = editor.getModel()
-    if (model) {
-      const totalLines = model.getLineCount()
-      const lastLineLength = model.getLineContent(totalLines).length
-      editor.setSelection(new monaco.Range(1, 1, totalLines, lastLineLength + 1))
-      editor.focus()
+  if (showPreviewMode.value) {
+    // 预览模式下选择所有预览内容
+    const selection = window.getSelection()
+    if (selection) {
+      const previewElement = document.querySelector('.markdown-preview-wrapper')
+      if (previewElement) {
+        const range = document.createRange()
+        range.selectNodeContents(previewElement)
+        selection.removeAllRanges()
+        selection.addRange(range)
+      }
+    }
+  } else {
+    const editor = isMaximized.value ? maximizedEditorInstance : editorInstance
+    if (editor) {
+      const model = editor.getModel()
+      if (model) {
+        const totalLines = model.getLineCount()
+        const lastLineLength = model.getLineContent(totalLines).length
+        editor.setSelection(new monaco.Range(1, 1, totalLines, lastLineLength + 1))
+        editor.focus()
+      }
     }
   }
   hideContextMenu()
@@ -497,13 +566,53 @@ const toggleMaximizeFromMenu = () => {
   toggleMaximize()
 }
 
-// ESC 键退出最大化
+// Markdown 渲染
+const renderedMarkdown = computed(() => {
+  if (!props.modelValue) return ''
+  return renderMarkdown(props.modelValue)
+})
+
+const togglePreviewMode = () => {
+  hideContextMenu()
+  if (showPreviewMode.value) {
+    exitPreviewMode()
+  } else {
+    showPreviewMode.value = true
+    emit('preview')
+  }
+}
+
+const exitPreviewMode = () => {
+  showPreviewMode.value = false
+  // 重新聚焦编辑器
+  setTimeout(() => {
+    if (isMaximized.value) {
+      maximizedEditorInstance?.focus()
+    } else {
+      editorInstance?.focus()
+    }
+  }, 100)
+}
+
+// 处理预览模式下的右键菜单
+const handlePreviewContextMenu = (e: MouseEvent) => {
+  e.preventDefault()
+  e.stopPropagation()
+  showCustomContextMenu(e.clientX, e.clientY)
+}
+
+// ESC 键退出最大化或预览
 const handleEscKey = (e: KeyboardEvent) => {
-  // 只在最大化模式下处理 ESC 键
-  if (e.key === 'Escape' && isMaximized.value) {
-    e.preventDefault()
-    e.stopPropagation()
-    toggleMaximize()
+  if (e.key === 'Escape') {
+    if (showPreviewMode.value) {
+      e.preventDefault()
+      e.stopPropagation()
+      exitPreviewMode()
+    } else if (isMaximized.value) {
+      e.preventDefault()
+      e.stopPropagation()
+      toggleMaximize()
+    }
   }
 }
 
@@ -862,6 +971,28 @@ onUnmounted(() => {
   }
 })
 
+// 监听键盘快捷键 Ctrl+Shift+V
+const handleKeyboardShortcut = (e: KeyboardEvent) => {
+  if (e.ctrlKey && e.shiftKey && e.key === 'V' && props.enablePreview && props.language === 'markdown') {
+    e.preventDefault()
+    if (showPreviewMode.value) {
+      exitPreviewMode()
+    } else {
+      showPreviewMode.value = true
+      emit('preview')
+    }
+  }
+}
+
+// 添加键盘快捷键监听
+onMounted(() => {
+  document.addEventListener('keydown', handleKeyboardShortcut)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('keydown', handleKeyboardShortcut)
+})
+
 // 暴露方法供外部调用
 defineExpose({
   focus: () => editorInstance?.focus(),
@@ -1159,8 +1290,17 @@ defineExpose({
   transition: background-color 0.1s;
 }
 
-.context-menu-item:hover {
+.context-menu-item:hover:not(.disabled) {
   background: #094771;
+}
+
+.context-menu-item.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.context-menu-item.disabled:hover {
+  background: transparent;
 }
 
 .menu-icon {
@@ -1205,5 +1345,77 @@ defineExpose({
 .context-menu-leave-to {
   opacity: 0;
   transform: scale(0.95);
+}
+
+/* 预览模式样式 */
+.preview-mode-container {
+  width: 100%;
+  border: 1px solid #3e3e42;
+  border-radius: 4px;
+  background: #1e1e1e;
+  overflow-y: auto;
+  padding: 20px;
+}
+
+/* Markdown 预览容器 */
+.markdown-preview-wrapper {
+  user-select: text;
+  cursor: text;
+}
+
+/* 预览模式滚动条 */
+.preview-mode-container::-webkit-scrollbar {
+  width: 10px;
+}
+
+.preview-mode-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.preview-mode-container::-webkit-scrollbar-thumb {
+  background: #424242;
+  border-radius: 5px;
+}
+
+.preview-mode-container::-webkit-scrollbar-thumb:hover {
+  background: #4e4e52;
+}
+
+/* 最大化预览模式 */
+.maximized-preview-mode {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: #1e1e1e;
+}
+
+.maximized-preview-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 40px 60px;
+}
+
+.maximized-preview-content .markdown-preview-wrapper {
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+/* 最大化预览滚动条 */
+.maximized-preview-content::-webkit-scrollbar {
+  width: 10px;
+}
+
+.maximized-preview-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.maximized-preview-content::-webkit-scrollbar-thumb {
+  background: #424242;
+  border-radius: 5px;
+}
+
+.maximized-preview-content::-webkit-scrollbar-thumb:hover {
+  background: #4e4e52;
 }
 </style>

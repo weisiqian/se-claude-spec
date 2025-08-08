@@ -173,6 +173,7 @@ const handleBack = () => {
             placeholder="输入或自动生成提示词..."
             :readonly="isExecuting"
             :enable-maximize="true"
+            :enable-preview="true"
           />
         </div>
         

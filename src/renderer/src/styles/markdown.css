@@ -1,0 +1,297 @@
+/* Markdown 预览样式 - 深色主题 */
+.markdown-preview-wrapper {
+  color: #d4d4d4;
+  font-size: 14px;
+  line-height: 1.6;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+  word-break: break-word;
+}
+
+/* 标题 */
+.markdown-preview-wrapper h1 {
+  color: #e1e1e1;
+  font-size: 28px;
+  font-weight: 600;
+  margin: 24px 0 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #3e3e42;
+}
+
+.markdown-preview-wrapper h2 {
+  color: #e1e1e1;
+  font-size: 22px;
+  font-weight: 600;
+  margin: 20px 0 12px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #2e2e32;
+}
+
+.markdown-preview-wrapper h3 {
+  color: #e1e1e1;
+  font-size: 18px;
+  font-weight: 600;
+  margin: 16px 0 8px;
+}
+
+.markdown-preview-wrapper h4 {
+  color: #e1e1e1;
+  font-size: 16px;
+  font-weight: 600;
+  margin: 12px 0 6px;
+}
+
+.markdown-preview-wrapper h5 {
+  color: #e1e1e1;
+  font-size: 14px;
+  font-weight: 600;
+  margin: 10px 0 5px;
+}
+
+.markdown-preview-wrapper h6 {
+  color: #d0d0d0;
+  font-size: 13px;
+  font-weight: 600;
+  margin: 8px 0 4px;
+}
+
+/* 段落 */
+.markdown-preview-wrapper p {
+  margin: 12px 0;
+}
+
+/* 强调 */
+.markdown-preview-wrapper strong {
+  color: #f1f1f1;
+  font-weight: 600;
+}
+
+.markdown-preview-wrapper em {
+  font-style: italic;
+  color: #b4b4b4;
+}
+
+/* 链接 */
+.markdown-preview-wrapper a {
+  color: #3794ff;
+  text-decoration: none;
+  transition: color 0.15s;
+}
+
+.markdown-preview-wrapper a:hover {
+  color: #4ca5ff;
+  text-decoration: underline;
+}
+
+/* 列表 */
+.markdown-preview-wrapper ul,
+.markdown-preview-wrapper ol {
+  margin: 12px 0;
+  padding-left: 24px;
+}
+
+.markdown-preview-wrapper li {
+  margin: 4px 0;
+}
+
+.markdown-preview-wrapper ul ul,
+.markdown-preview-wrapper ul ol,
+.markdown-preview-wrapper ol ul,
+.markdown-preview-wrapper ol ol {
+  margin: 4px 0;
+}
+
+/* 任务列表 */
+.markdown-preview-wrapper .task-list-item {
+  list-style-type: none;
+  position: relative;
+  padding-left: 24px;
+}
+
+.markdown-preview-wrapper .task-list-item input[type="checkbox"] {
+  position: absolute;
+  left: 0;
+  top: 3px;
+}
+
+/* 引用块 */
+.markdown-preview-wrapper .markdown-blockquote {
+  margin: 16px 0;
+  padding: 12px 16px;
+  border-left: 4px solid #3e3e42;
+  background: #1a1a1a;
+  color: #a0a0a0;
+}
+
+.markdown-preview-wrapper .markdown-blockquote > :first-child {
+  margin-top: 0;
+}
+
+.markdown-preview-wrapper .markdown-blockquote > :last-child {
+  margin-bottom: 0;
+}
+
+/* 分割线 */
+.markdown-preview-wrapper hr {
+  margin: 20px 0;
+  border: none;
+  border-top: 1px solid #3e3e42;
+}
+
+/* 行内代码 */
+.markdown-preview-wrapper code:not(.hljs) {
+  background: #2d2d30;
+  color: #ce9178;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 13px;
+}
+
+/* 代码块 */
+.markdown-preview-wrapper pre {
+  margin: 16px 0;
+  background: #1a1a1a;
+  border: 1px solid #3e3e42;
+  border-radius: 6px;
+  overflow: auto;
+}
+
+.markdown-preview-wrapper pre.hljs {
+  padding: 16px;
+  background: #1a1a1a;
+}
+
+.markdown-preview-wrapper pre code {
+  background: transparent;
+  color: #d4d4d4;
+  padding: 0;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* 代码高亮样式覆盖 */
+.markdown-preview-wrapper .hljs {
+  background: #1a1a1a;
+  color: #d4d4d4;
+}
+
+/* 表格 */
+.markdown-preview-wrapper .table-wrapper {
+  overflow-x: auto;
+  margin: 16px 0;
+}
+
+.markdown-preview-wrapper .markdown-table {
+  border-collapse: collapse;
+  width: 100%;
+  min-width: 300px;
+}
+
+.markdown-preview-wrapper .markdown-table th,
+.markdown-preview-wrapper .markdown-table td {
+  border: 1px solid #3e3e42;
+  padding: 8px 12px;
+  text-align: left;
+}
+
+.markdown-preview-wrapper .markdown-table th {
+  background: #252526;
+  color: #e1e1e1;
+  font-weight: 600;
+}
+
+.markdown-preview-wrapper .markdown-table tr:nth-child(even) {
+  background: #1a1a1a;
+}
+
+.markdown-preview-wrapper .markdown-table tr:hover {
+  background: #2a2a2a;
+}
+
+/* 图片 */
+.markdown-preview-wrapper img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 4px;
+  margin: 12px 0;
+}
+
+/* 键盘按键 */
+.markdown-preview-wrapper kbd {
+  background: #2d2d30;
+  border: 1px solid #3e3e42;
+  border-radius: 3px;
+  padding: 2px 6px;
+  font-size: 12px;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  color: #d4d4d4;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.2);
+}
+
+/* 删除线 */
+.markdown-preview-wrapper del {
+  color: #808080;
+  text-decoration: line-through;
+}
+
+/* 插入 */
+.markdown-preview-wrapper ins {
+  color: #98c379;
+  text-decoration: none;
+  background: rgba(152, 195, 121, 0.1);
+}
+
+/* 标记 */
+.markdown-preview-wrapper mark {
+  background: rgba(255, 235, 59, 0.2);
+  color: #fff;
+  padding: 2px 4px;
+  border-radius: 2px;
+}
+
+/* 上标和下标 */
+.markdown-preview-wrapper sup {
+  vertical-align: super;
+  font-size: 0.75em;
+}
+
+.markdown-preview-wrapper sub {
+  vertical-align: sub;
+  font-size: 0.75em;
+}
+
+/* 缩写 */
+.markdown-preview-wrapper abbr {
+  border-bottom: 1px dotted #808080;
+  cursor: help;
+}
+
+/* 脚注 */
+.markdown-preview-wrapper .footnote-ref {
+  vertical-align: super;
+  font-size: 0.75em;
+}
+
+.markdown-preview-wrapper .footnotes {
+  margin-top: 30px;
+  padding-top: 20px;
+  border-top: 1px solid #3e3e42;
+  font-size: 13px;
+}
+
+/* 定义列表 */
+.markdown-preview-wrapper dl {
+  margin: 16px 0;
+}
+
+.markdown-preview-wrapper dt {
+  font-weight: 600;
+  color: #e1e1e1;
+  margin: 12px 0 4px;
+}
+
+.markdown-preview-wrapper dd {
+  margin: 4px 0 12px 24px;
+  color: #b4b4b4;
+}

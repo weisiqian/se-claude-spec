@@ -186,7 +186,7 @@ const createMaximizedEditor = () => {
   maximizedEditorInstance = monaco.editor.create(maximizedEditorContainer.value, {
     value: currentValue,
     language: currentLanguage,
-    theme: 'customLight',
+    theme: 'wtDark',
     readOnly: props.readOnly,
     minimap: {
       enabled: props.minimap

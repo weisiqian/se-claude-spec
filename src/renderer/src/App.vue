@@ -4,12 +4,16 @@ import TitleBar from './components/TitleBar/index.vue'
 import StepForm from './components/StepForm.vue'
 import Terminal from './components/Terminal.vue'
 import ResizablePanel from './components/ResizablePanel.vue'
+import ActivityBar from './components/ActivityBar.vue'
+import SidePanel from './components/SidePanel.vue'
+import SplitLayout from './components/SplitLayout.vue'
 
 const projectPath = ref<string | null>(null)
 const showForm = ref(false)
 const formType = ref<'requirement' | 'design' | 'task'>('requirement')
 const formAction = ref<'create' | 'update' | 'execute'>('create')
 const isDark = ref(false)
+const activePanel = ref<'requirement' | 'design' | 'task' | ''>('')
 const terminalRef = ref<any>(null)
 const terminals = ref<Array<{ id: string; label?: string }>>([])
 const activeTerminalId = ref<string>('')
@@ -20,9 +24,8 @@ const isMaximized = ref(false)
 provide('isDark', isDark)
 
 const handleMenuAction = (type: string, action: string) => {
-  formType.value = type as 'requirement' | 'design' | 'task'
-  formAction.value = action as 'create' | 'update' | 'execute'
-  showForm.value = true
+  activePanel.value = type as 'requirement' | 'design' | 'task'
+  showForm.value = false
 }
 
 const handleDirectorySelected = (path: string) => {
@@ -35,6 +38,27 @@ const handleDirectorySelected = (path: string) => {
 const handleThemeToggle = () => {
   isDark.value = !isDark.value
   localStorage.setItem('theme', isDark.value ? 'dark' : 'light')
+}
+
+const handleActivitySelect = (id: string) => {
+  activePanel.value = id as 'requirement' | 'design' | 'task' | ''
+  showForm.value = false
+}
+
+const handlePanelItemSelect = (item: any) => {
+  if (!item) {
+    // 点击新建按钮，打开原有的表单页面
+    formType.value = activePanel.value as 'requirement' | 'design' | 'task'
+    formAction.value = 'create'
+    showForm.value = true
+    activePanel.value = ''
+  } else {
+    // 编辑现有项
+    formType.value = activePanel.value as 'requirement' | 'design' | 'task'
+    formAction.value = 'update'
+    showForm.value = true
+    activePanel.value = ''
+  }
 }
 
 const handleCreateTerminal = async (type: string = 'bash') => {
@@ -105,8 +129,27 @@ onUnmounted(() => {
       :active-terminal-id="activeTerminalId"
     />
     <div class="content">
+      <SplitLayout v-if="activePanel">
+        <template #activityBar>
+          <ActivityBar 
+            :is-dark="isDark"
+            @select="handleActivitySelect"
+          />
+        </template>
+        <template #sidePanel>
+          <SidePanel
+            :type="activePanel"
+            :is-dark="isDark"
+            @close="activePanel = ''"
+            @item-select="handlePanelItemSelect"
+          />
+        </template>
+        <template #terminal>
+          <Terminal ref="terminalRef" :project-path="projectPath" :is-dark="isDark" />
+        </template>
+      </SplitLayout>
       <ResizablePanel 
-        v-if="showForm"
+        v-else-if="showForm"
         :initial-side-width="600"
         :min-side-width="400"
         :max-side-width="800"
@@ -151,6 +194,7 @@ onUnmounted(() => {
   overflow: hidden;
   background: var(--wt-bg-primary);
   border-radius: 0 0 8px 8px;
+  position: relative;
 }
 
 .app.maximized .content {

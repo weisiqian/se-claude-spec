@@ -128,7 +128,7 @@ const updateSubmenuPosition = (menu: string) => {
       const rect = item.getBoundingClientRect()
       const primaryRect = primaryMenu.getBoundingClientRect()
       submenuTopPosition.value = rect.top
-      submenuLeftPosition.value = primaryRect.right + 2
+      submenuLeftPosition.value = primaryRect.right
     }
   })
 }
@@ -252,7 +252,6 @@ const handleShowAbout = () => {
   border: 1px solid var(--wt-border);
   border-radius: var(--wt-radius);
   box-shadow: var(--wt-shadow);
-  margin-left: 4px;
 }
 
 .menu-slide-enter-active,

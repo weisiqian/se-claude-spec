@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref, inject } from 'vue'
+import { ref, inject, computed } from 'vue'
 import MonacoEditor from './MonacoEditor.vue'
+import defaultPromptContent from '@renderer/assets/default-prompt.md?raw'
 
 const props = defineProps<{
   projectPath?: string | null
@@ -14,11 +15,34 @@ const emit = defineEmits<{
 
 const isDark = inject('isDark', ref(false))
 
+// 默认提示词
+const DEFAULT_PROMPT = defaultPromptContent
+
 const userRequirement = ref('')
-const prompt = ref('')
+// 初始化时直接设置默认提示词，避免闪烁
+const prompt = ref(DEFAULT_PROMPT)
 const jsonSchema = ref('')
 const isGenerating = ref(false)
 const isExecuting = ref(false)
+
+// 计算属性：判断提示词是否与默认值不同
+const isPromptModified = computed(() => {
+  return prompt.value !== DEFAULT_PROMPT
+})
+
+// 计算属性：判断是否有未保存的内容
+const hasUnsavedContent = computed(() => {
+  return userRequirement.value || (prompt.value && prompt.value !== DEFAULT_PROMPT) || jsonSchema.value
+})
+
+const handleResetPrompt = () => {
+  if (prompt.value !== DEFAULT_PROMPT) {
+    // 使用自定义确认对话框或静默重置
+    prompt.value = DEFAULT_PROMPT
+    // 可以添加一个临时提示，但不使用 alert
+    console.log('提示词已重置为默认值')
+  }
+}
 
 const handleGenerateCommand = async () => {
   if (!userRequirement.value.trim()) {
@@ -35,13 +59,8 @@ const handleGenerateCommand = async () => {
       jsonSchema: jsonSchema.value
     })
     
-    // 模拟生成过程
+    // 模拟生成过稌
     await new Promise(resolve => setTimeout(resolve, 1000))
-    
-    // 生成示例提示词
-    if (!prompt.value) {
-      prompt.value = `基于以下需求生成代码：\n${userRequirement.value}`
-    }
     
     // 生成示例 JSON Schema
     if (!jsonSchema.value) {
@@ -97,28 +116,45 @@ const handleExecuteCommand = async () => {
 
 const handleReset = () => {
   userRequirement.value = ''
-  prompt.value = ''
+  prompt.value = DEFAULT_PROMPT
   jsonSchema.value = ''
 }
 
+// 添加一个状态来控制是否显示未保存提示
+const showUnsavedWarning = ref(false)
+const pendingAction = ref<'close' | 'back' | null>(null)
+
 const handleClose = () => {
-  if (userRequirement.value || prompt.value || jsonSchema.value) {
-    if (confirm('确定要关闭吗？未保存的内容将丢失。')) {
-      emit('close')
-    }
+  if (hasUnsavedContent.value) {
+    pendingAction.value = 'close'
+    showUnsavedWarning.value = true
   } else {
     emit('close')
   }
 }
 
 const handleBack = () => {
-  if (userRequirement.value || prompt.value || jsonSchema.value) {
-    if (confirm('确定要返回吗？未保存的内容将丢失。')) {
-      emit('back')
-    }
+  if (hasUnsavedContent.value) {
+    pendingAction.value = 'back'
+    showUnsavedWarning.value = true
   } else {
     emit('back')
   }
+}
+
+const confirmLeave = () => {
+  showUnsavedWarning.value = false
+  if (pendingAction.value === 'close') {
+    emit('close')
+  } else if (pendingAction.value === 'back') {
+    emit('back')
+  }
+  pendingAction.value = null
+}
+
+const cancelLeave = () => {
+  showUnsavedWarning.value = false
+  pendingAction.value = null
 }
 </script>
 
@@ -155,14 +191,20 @@ const handleBack = () => {
         <div class="form-group">
           <label class="form-label">
             提示词
-            <button 
-              class="auto-generate-btn"
-              @click="handleGenerateCommand"
-              :disabled="!userRequirement.trim() || isGenerating || isExecuting"
-              title="基于用户需求自动生成"
-            >
-              {{ isGenerating ? '生成中...' : '自动生成' }}
-            </button>
+            <transition name="fade">
+              <button 
+                v-if="isPromptModified"
+                class="auto-generate-btn"
+                @click="handleResetPrompt"
+                :disabled="isExecuting"
+                title="重置为默认提示词"
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" style="margin-right: 4px;">
+                  <path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/>
+                </svg>
+                重置提示词
+              </button>
+            </transition>
           </label>
           <MonacoEditor
             v-model="prompt"
@@ -224,6 +266,33 @@ const handleBack = () => {
         </button>
       </div>
     </div>
+    
+    <!-- 未保存提示 -->
+    <transition name="modal-fade">
+      <div v-if="showUnsavedWarning" class="unsaved-warning-overlay" @click.self="cancelLeave">
+        <div class="unsaved-warning-dialog">
+          <div class="warning-icon">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+              <line x1="12" y1="9" x2="12" y2="13"/>
+              <line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+          </div>
+          <h3 class="warning-title">未保存的更改</h3>
+          <p class="warning-message">
+            您有未保存的内容，确定要{{ pendingAction === 'close' ? '关闭' : '返回' }}吗？
+          </p>
+          <div class="warning-actions">
+            <button class="warning-btn cancel-btn" @click="cancelLeave">
+              继续编辑
+            </button>
+            <button class="warning-btn confirm-btn" @click="confirmLeave">
+              {{ pendingAction === 'close' ? '关闭' : '返回' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </transition>
   </div>
 </template>
 
@@ -453,6 +522,120 @@ const handleBack = () => {
 .action-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+/* 过渡动画 */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+/* 未保存提示样式 */
+.unsaved-warning-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.unsaved-warning-dialog {
+  background: #252526;
+  border: 1px solid #3e3e42;
+  border-radius: 8px;
+  padding: 24px;
+  max-width: 400px;
+  width: 90%;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+  text-align: center;
+}
+
+.warning-icon {
+  margin-bottom: 16px;
+  color: #f9c74f;
+}
+
+.warning-title {
+  margin: 0 0 12px;
+  font-size: 18px;
+  font-weight: 600;
+  color: #cccccc;
+}
+
+.warning-message {
+  margin: 0 0 24px;
+  font-size: 14px;
+  color: #969696;
+  line-height: 1.5;
+}
+
+.warning-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.warning-btn {
+  padding: 8px 20px;
+  border: none;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  min-width: 100px;
+}
+
+.cancel-btn {
+  background: #3e3e42;
+  color: #cccccc;
+}
+
+.cancel-btn:hover {
+  background: #4e4e52;
+}
+
+.confirm-btn {
+  background: #0e639c;
+  color: white;
+}
+
+.confirm-btn:hover {
+  background: #1177bb;
+}
+
+/* 模态框过渡动画 */
+.modal-fade-enter-active,
+.modal-fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.modal-fade-enter-from,
+.modal-fade-leave-to {
+  opacity: 0;
+}
+
+.modal-fade-enter-active .unsaved-warning-dialog,
+.modal-fade-leave-active .unsaved-warning-dialog {
+  transition: transform 0.3s ease;
+}
+
+.modal-fade-enter-from .unsaved-warning-dialog {
+  transform: scale(0.9);
+}
+
+.modal-fade-leave-to .unsaved-warning-dialog {
+  transform: scale(0.9);
 }
 
 /* 深色主题适配 */

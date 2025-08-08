@@ -17,6 +17,12 @@ const api = {
   },
   dialog: {
     openDirectory: () => ipcRenderer.invoke('dialog:open-directory')
+  },
+  getCurrentWorkspace: () => ipcRenderer.invoke('get-current-workspace'),
+  getRecentDirectories: () => ipcRenderer.invoke('get-recent-directories'),
+  switchWorkspace: (dirPath: string) => ipcRenderer.invoke('switch-workspace', dirPath),
+  onWorkspaceChanged: (callback: (workspace: string) => void) => {
+    ipcRenderer.on('workspace-changed', (_, workspace) => callback(workspace))
   }
 }
 

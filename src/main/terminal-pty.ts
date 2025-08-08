@@ -3,6 +3,7 @@ import { spawn, IPty } from 'node-pty'
 import os from 'os'
 import { exec } from 'child_process'
 import { promisify } from 'util'
+import { getCurrentWorkspace } from './workspaceManager'
 
 const execAsync = promisify(exec)
 
@@ -60,6 +61,10 @@ export class TerminalManager {
     if (this.terminals.has(id)) {
       return false
     }
+    
+    // 使用当前工作空间作为默认目录
+    const workspace = getCurrentWorkspace()
+    const workingDir = cwd || workspace || os.homedir()
 
     // 根据 shellType 选择不同的 shell
     let shell: string
@@ -97,7 +102,7 @@ export class TerminalManager {
       name: 'xterm-color',
       cols: 80,
       rows: 30,
-      cwd: cwd || os.homedir(),
+      cwd: workingDir,
       env: process.env as any
     })
 

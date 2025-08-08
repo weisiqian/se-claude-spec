@@ -149,13 +149,20 @@ const handleAction = (type: string, action: string) => {
   emit('menu-action', type, action)
 }
 
-const handleDirectorySelected = async () => {
+const handleDirectorySelected = async (path?: string) => {
   showMenu.value = false
   activeSubmenu.value = null
-  const result = await window.api?.dialog?.openDirectory()
-  if (result && !result.canceled && result.filePaths.length > 0) {
-    emit('directory-selected', result.filePaths[0])
-    ElMessage.success(`已选择目录: ${result.filePaths[0]}`)
+  
+  // 如果传入了路径，说明是从最近目录选择的，直接使用
+  if (path) {
+    emit('directory-selected', path)
+  } else {
+    // 否则弹出选择框
+    const result = await window.api?.dialog?.openDirectory()
+    if (result && !result.canceled && result.filePaths.length > 0) {
+      emit('directory-selected', result.filePaths[0])
+      ElMessage.success(`已选择目录: ${result.filePaths[0]}`)
+    }
   }
 }
 

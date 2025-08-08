@@ -31,10 +31,10 @@ const handleMenuAction = (type: string, action: string) => {
 }
 
 const handleDirectorySelected = (path: string) => {
+  // 只更新本地状态，不切换终端目录
+  // 终端目录切换会在 workspace-changed 事件中统一处理
   projectPath.value = path
   localStorage.setItem('projectPath', path)
-  // 切换当前终端的工作目录
-  terminalRef.value?.changeDirectory(path)
 }
 
 const handleThemeToggle = () => {
@@ -98,10 +98,29 @@ const handleRequirementSubmit = (data: any) => {
 }
 
 onMounted(async () => {
-  // 恢复保存的项目路径
-  const savedPath = localStorage.getItem('projectPath')
-  if (savedPath) {
-    projectPath.value = savedPath
+  // 获取当前工作空间
+  if (window.api?.getCurrentWorkspace) {
+    const currentWorkspace = await window.api.getCurrentWorkspace()
+    if (currentWorkspace) {
+      projectPath.value = currentWorkspace
+      localStorage.setItem('projectPath', currentWorkspace)
+    }
+  } else {
+    // 恢复保存的项目路径
+    const savedPath = localStorage.getItem('projectPath')
+    if (savedPath) {
+      projectPath.value = savedPath
+    }
+  }
+  
+  // 监听工作空间变化
+  if (window.api?.onWorkspaceChanged) {
+    window.api.onWorkspaceChanged((workspace: string) => {
+      projectPath.value = workspace
+      localStorage.setItem('projectPath', workspace)
+      // 切换终端工作目录
+      terminalRef.value?.changeDirectory(workspace)
+    })
   }
   
   // 恢复主题设置

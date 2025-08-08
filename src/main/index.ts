@@ -3,8 +3,16 @@ import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import { TerminalManager } from './terminal-pty'
+import { 
+  initializeWorkspace, 
+  setCurrentWorkspace, 
+  getCurrentWorkspace, 
+  getRecentDirectories,
+  cleanupRecentDirectories 
+} from './workspaceManager'
 
 let terminalManager: TerminalManager
+let mainWindow: BrowserWindow | null = null
 
 /**
  * 创建主窗口，并设置为默认最大化显示。
@@ -12,7 +20,7 @@ let terminalManager: TerminalManager
  */
 function createWindow(): void {
   // 创建主窗口，使用Windows Terminal标准尺寸
-  const mainWindow = new BrowserWindow({
+  mainWindow = new BrowserWindow({
     width: 1200,
     height: 740,
     minWidth: 800,
@@ -32,21 +40,21 @@ function createWindow(): void {
 
   // 当窗口准备好显示时，显示窗口（不默认最大化）
   mainWindow.on('ready-to-show', () => {
-    mainWindow.show()
+    mainWindow?.show()
     
     // 初始化终端管理器并设置主窗口
-    if (terminalManager) {
+    if (terminalManager && mainWindow) {
       terminalManager.setMainWindow(mainWindow)
     }
   })
 
   // 监听窗口最大化/还原事件，通知渲染进程更新状态
   mainWindow.on('maximize', () => {
-    mainWindow.webContents.send('window-maximized', true)
+    mainWindow?.webContents.send('window-maximized', true)
   })
 
   mainWindow.on('unmaximize', () => {
-    mainWindow.webContents.send('window-maximized', false)
+    mainWindow?.webContents.send('window-maximized', false)
   })
 
   // 拦截新窗口打开请求，使用外部浏览器打开链接
@@ -99,6 +107,12 @@ app.whenReady().then(() => {
 
   // 初始化终端管理器
   terminalManager = new TerminalManager()
+  
+  // 清理不存在的目录
+  cleanupRecentDirectories()
+  
+  // 初始化工作空间
+  const initialWorkspace = initializeWorkspace()
 
   // 测试IPC通信
   ipcMain.on('ping', () => console.log('pong'))
@@ -143,11 +157,42 @@ app.whenReady().then(() => {
       title: '选择项目目录'
     })
     
+    // 如果选择了目录，保存并设置为当前工作空间
+    if (!result.canceled && result.filePaths.length > 0) {
+      const selectedPath = result.filePaths[0]
+      setCurrentWorkspace(selectedPath)
+      mainWindow?.webContents.send('workspace-changed', selectedPath)
+    }
+    
     return result
+  })
+  
+  // 获取当前工作空间
+  ipcMain.handle('get-current-workspace', () => {
+    return getCurrentWorkspace()
+  })
+  
+  // 获取最近打开的目录
+  ipcMain.handle('get-recent-directories', () => {
+    return getRecentDirectories()
+  })
+  
+  // 切换工作空间
+  ipcMain.handle('switch-workspace', (_, dirPath: string) => {
+    setCurrentWorkspace(dirPath)
+    mainWindow?.webContents.send('workspace-changed', dirPath)
+    return dirPath
   })
 
   // 创建主窗口（默认最大化）
   createWindow()
+  
+  // 如果有初始工作空间，通知渲染进程
+  if (initialWorkspace && mainWindow) {
+    mainWindow.webContents.once('did-finish-load', () => {
+      mainWindow?.webContents.send('workspace-changed', initialWorkspace)
+    })
+  }
 
   // macOS平台下点击Dock图标时无窗口则重新创建
   app.on('activate', function () {

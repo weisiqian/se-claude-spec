@@ -18,6 +18,10 @@ declare global {
           filePaths: string[]
         }>
       }
+      getCurrentWorkspace: () => Promise<string | null>
+      getRecentDirectories: () => Promise<string[]>
+      switchWorkspace: (dirPath: string) => Promise<string>
+      onWorkspaceChanged: (callback: (workspace: string) => void) => void
     }
   }
 }

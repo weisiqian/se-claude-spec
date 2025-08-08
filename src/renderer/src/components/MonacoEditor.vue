@@ -48,6 +48,22 @@
           <span class="menu-text">粘贴</span>
           <span class="menu-shortcut">Ctrl+V</span>
         </div>
+        <div class="context-menu-divider" v-if="props.enablePlaceholder && !showPreviewMode"></div>
+        <div 
+          class="context-menu-item has-submenu" 
+          v-if="props.enablePlaceholder && !showPreviewMode"
+          @mouseenter="showPlaceholderMenu"
+          @mouseleave="hidePlaceholderMenu"
+        >
+          <span class="menu-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+              <path d="M9 9h6M9 12h6M9 15h4"/>
+            </svg>
+          </span>
+          <span class="menu-text">插入占位符</span>
+          <span class="menu-arrow">▶</span>
+        </div>
         <div class="context-menu-divider"></div>
         <div class="context-menu-item" @click="handleSelectAll">
           <span class="menu-icon">
@@ -89,6 +105,42 @@
           </span>
           <span class="menu-text">{{ isMaximized ? '还原' : '最大化' }}</span>
           <span class="menu-shortcut">{{ isMaximized ? 'ESC' : '' }}</span>
+        </div>
+      </div>
+    </transition>
+    
+    <!-- 占位符二级菜单 -->
+    <transition name="submenu-fade">
+      <div 
+        v-if="showPlaceholderSubmenu && props.enablePlaceholder"
+        class="context-submenu"
+        :style="placeholderSubmenuStyle"
+        @mouseenter="keepPlaceholderMenu"
+        @mouseleave="hidePlaceholderMenu"
+      >
+        <div class="context-menu-item" @click="insertPlaceholder('userRequirement')">
+          <span class="menu-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/>
+              <line x1="16" y1="13" x2="8" y2="13"/>
+              <line x1="16" y1="17" x2="8" y2="17"/>
+              <polyline points="10 9 9 9 8 9"/>
+            </svg>
+          </span>
+          <span class="menu-text">用户需求</span>
+          <span class="menu-code">{{userRequirement}}</span>
+        </div>
+        <div class="context-menu-item" @click="insertPlaceholder('jsonSchema')">
+          <span class="menu-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/>
+              <path d="M10 12l2 2 2-2M12 14v4"/>
+            </svg>
+          </span>
+          <span class="menu-text">JSON Schema</span>
+          <span class="menu-code">{{jsonSchema}}</span>
         </div>
       </div>
     </transition>
@@ -217,6 +269,8 @@ interface Props {
   automaticLayout?: boolean
   enableMaximize?: boolean
   enablePreview?: boolean
+  enablePlaceholder?: boolean
+  placeholderData?: Record<string, string>
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -234,7 +288,9 @@ const props = withDefaults(defineProps<Props>(), {
   tabSize: 2,
   automaticLayout: true,
   enableMaximize: true,
-  enablePreview: false
+  enablePreview: false,
+  enablePlaceholder: false,
+  placeholderData: () => ({})
 })
 
 const emit = defineEmits<{
@@ -258,7 +314,12 @@ const showPreviewMode = ref(false)
 
 // 右键菜单相关
 const showContextMenu = ref(false)
+const showPlaceholderSubmenu = ref(false)
 const contextMenuStyle = ref({
+  left: '0px',
+  top: '0px'
+})
+const placeholderSubmenuStyle = ref({
   left: '0px',
   top: '0px'
 })
@@ -477,6 +538,71 @@ const showCustomContextMenu = (x: number, y: number) => {
 // 隐藏右键菜单
 const hideContextMenu = () => {
   showContextMenu.value = false
+  showPlaceholderSubmenu.value = false
+}
+
+// 显示占位符二级菜单
+let placeholderMenuTimer: NodeJS.Timeout | null = null
+
+const showPlaceholderMenu = (e: MouseEvent) => {
+  if (placeholderMenuTimer) {
+    clearTimeout(placeholderMenuTimer)
+  }
+  
+  // 计算二级菜单位置
+  const menuItem = (e.target as HTMLElement).closest('.context-menu-item')
+  if (menuItem) {
+    const rect = menuItem.getBoundingClientRect()
+    placeholderSubmenuStyle.value = {
+      left: `${rect.right + 2}px`,
+      top: `${rect.top}px`
+    }
+  }
+  
+  showPlaceholderSubmenu.value = true
+}
+
+const hidePlaceholderMenu = () => {
+  placeholderMenuTimer = setTimeout(() => {
+    showPlaceholderSubmenu.value = false
+  }, 200)
+}
+
+const keepPlaceholderMenu = () => {
+  if (placeholderMenuTimer) {
+    clearTimeout(placeholderMenuTimer)
+  }
+}
+
+// 插入占位符
+const insertPlaceholder = (type: 'userRequirement' | 'jsonSchema') => {
+  const placeholder = `{{${type}}}`
+  const editor = isMaximized.value ? maximizedEditorInstance : editorInstance
+  
+  if (editor) {
+    const position = editor.getPosition()
+    if (position) {
+      const range = new monaco.Range(
+        position.lineNumber,
+        position.column,
+        position.lineNumber,
+        position.column
+      )
+      editor.executeEdits('insert-placeholder', [{
+        range: range,
+        text: placeholder
+      }])
+      // 移动光标到占位符后
+      const newPosition = {
+        lineNumber: position.lineNumber,
+        column: position.column + placeholder.length
+      }
+      editor.setPosition(newPosition)
+      editor.focus()
+    }
+  }
+  
+  hideContextMenu()
 }
 
 // 右键菜单操作
@@ -569,7 +695,22 @@ const toggleMaximizeFromMenu = () => {
 // Markdown 渲染
 const renderedMarkdown = computed(() => {
   if (!props.modelValue) return ''
-  return renderMarkdown(props.modelValue)
+  
+  let content = props.modelValue
+  
+  // 预览时替换占位符
+  if (props.placeholderData) {
+    // 替换 {{userRequirement}}
+    if (props.placeholderData.userRequirement) {
+      content = content.replace(/\{\{userRequirement\}\}/g, props.placeholderData.userRequirement)
+    }
+    // 替换 {{jsonSchema}}
+    if (props.placeholderData.jsonSchema) {
+      content = content.replace(/\{\{jsonSchema\}\}/g, props.placeholderData.jsonSchema)
+    }
+  }
+  
+  return renderMarkdown(content)
 })
 
 const togglePreviewMode = () => {
@@ -1345,6 +1486,56 @@ defineExpose({
 .context-menu-leave-to {
   opacity: 0;
   transform: scale(0.95);
+}
+
+/* 二级菜单样式 */
+.context-submenu {
+  position: fixed;
+  z-index: 10002;
+  background: #252526;
+  border: 1px solid #454545;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  padding: 4px 0;
+  min-width: 220px;
+  font-size: 13px;
+  color: #cccccc;
+  user-select: none;
+}
+
+.has-submenu {
+  position: relative;
+}
+
+.menu-arrow {
+  margin-left: auto;
+  padding-left: 20px;
+  font-size: 10px;
+  color: #969696;
+}
+
+.menu-code {
+  margin-left: auto;
+  padding-left: 12px;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 11px;
+  color: #969696;
+  max-width: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 二级菜单过渡动画 */
+.submenu-fade-enter-active,
+.submenu-fade-leave-active {
+  transition: opacity 0.15s, transform 0.15s;
+}
+
+.submenu-fade-enter-from,
+.submenu-fade-leave-to {
+  opacity: 0;
+  transform: translateX(-5px);
 }
 
 /* 预览模式样式 */

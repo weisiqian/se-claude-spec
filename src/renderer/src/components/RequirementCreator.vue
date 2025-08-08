@@ -216,6 +216,11 @@ const cancelLeave = () => {
             :readonly="isExecuting"
             :enable-maximize="true"
             :enable-preview="true"
+            :enable-placeholder="true"
+            :placeholder-data="{
+              userRequirement: userRequirement || '用户需求将在这里显示',
+              jsonSchema: jsonSchema || 'JSON Schema 将在这里显示'
+            }"
           />
         </div>
         

@@ -1,5 +1,76 @@
 <template>
   <div class="monaco-editor-wrapper">
+    <!-- 右键菜单 -->
+    <transition name="context-menu">
+      <div 
+        v-if="showContextMenu"
+        class="context-menu"
+        :style="contextMenuStyle"
+        @click.stop
+      >
+        <div class="context-menu-item" @click="handleCopy">
+          <span class="menu-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+            </svg>
+          </span>
+          <span class="menu-text">复制</span>
+          <span class="menu-shortcut">Ctrl+C</span>
+        </div>
+        <div class="context-menu-item" @click="handleCut">
+          <span class="menu-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="6" cy="6" r="3"/>
+              <circle cx="6" cy="18" r="3"/>
+              <line x1="20" y1="4" x2="8.12" y2="15.88"/>
+              <line x1="14.47" y1="14.48" x2="20" y2="20"/>
+              <line x1="8.12" y1="8.12" x2="12" y2="12"/>
+            </svg>
+          </span>
+          <span class="menu-text">剪切</span>
+          <span class="menu-shortcut">Ctrl+X</span>
+        </div>
+        <div class="context-menu-item" @click="handlePaste">
+          <span class="menu-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
+              <rect x="8" y="2" width="8" height="4" rx="1" ry="1"/>
+            </svg>
+          </span>
+          <span class="menu-text">粘贴</span>
+          <span class="menu-shortcut">Ctrl+V</span>
+        </div>
+        <div class="context-menu-divider"></div>
+        <div class="context-menu-item" @click="handleSelectAll">
+          <span class="menu-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M3 5h2m0 0h2M5 5v2m0-2V3"/>
+              <path d="M3 19h2m0 0h2m-2 0v2m0-2v-2"/>
+              <path d="M19 5h2m0 0v2m0-2h-2m2 0V3"/>
+              <path d="M19 19h2m0 0v-2m0 2h-2m2 0v2"/>
+              <rect x="9" y="9" width="6" height="6" stroke-dasharray="2 2"/>
+            </svg>
+          </span>
+          <span class="menu-text">全选</span>
+          <span class="menu-shortcut">Ctrl+A</span>
+        </div>
+        <div class="context-menu-divider"></div>
+        <div class="context-menu-item" @click="toggleMaximizeFromMenu">
+          <span class="menu-icon">
+            <svg v-if="!isMaximized" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+            </svg>
+            <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"/>
+            </svg>
+          </span>
+          <span class="menu-text">{{ isMaximized ? '还原' : '最大化' }}</span>
+          <span class="menu-shortcut">{{ isMaximized ? 'ESC' : '' }}</span>
+        </div>
+      </div>
+    </transition>
+
     <!-- 最大化遮罩层 -->
     <div v-if="isMaximized" class="maximized-overlay">
       <div class="maximized-container">
@@ -145,6 +216,13 @@ let editorInstance: editor.IStandaloneCodeEditor | null = null
 let maximizedEditorInstance: editor.IStandaloneCodeEditor | null = null
 const showPlaceholder = ref(false)
 
+// 右键菜单相关
+const showContextMenu = ref(false)
+const contextMenuStyle = ref({
+  left: '0px',
+  top: '0px'
+})
+
 // 生成唯一的编辑器ID
 const editorId = `monaco-editor-${Math.random().toString(36).substr(2, 9)}`
 
@@ -266,12 +344,7 @@ const createMaximizedEditor = () => {
   maximizedEditorInstance.onContextMenu((e) => {
     e.event.preventDefault()
     e.event.stopPropagation()
-    const position = e.target.position || maximizedEditorInstance.getPosition()
-    emit('contextmenu', {
-      x: e.event.posx,
-      y: e.event.posy,
-      position: position
-    })
+    showCustomContextMenu(e.event.posx, e.event.posy)
   })
   
   // 聚焦最大化编辑器
@@ -326,6 +399,102 @@ const toggleMaximize = async () => {
   
   // 触发事件
   emit('maximize', isMaximized.value)
+}
+
+// 显示自定义右键菜单
+const showCustomContextMenu = (x: number, y: number) => {
+  // 计算菜单位置，确保不超出视窗
+  const menuWidth = 200
+  const menuHeight = 250
+  const windowWidth = window.innerWidth
+  const windowHeight = window.innerHeight
+  
+  let left = x
+  let top = y
+  
+  if (x + menuWidth > windowWidth) {
+    left = windowWidth - menuWidth - 10
+  }
+  
+  if (y + menuHeight > windowHeight) {
+    top = windowHeight - menuHeight - 10
+  }
+  
+  contextMenuStyle.value = {
+    left: `${left}px`,
+    top: `${top}px`
+  }
+  
+  showContextMenu.value = true
+  
+  // 点击其他地方关闭菜单
+  setTimeout(() => {
+    document.addEventListener('click', hideContextMenu, { once: true })
+    document.addEventListener('contextmenu', hideContextMenu, { once: true })
+  }, 0)
+}
+
+// 隐藏右键菜单
+const hideContextMenu = () => {
+  showContextMenu.value = false
+}
+
+// 右键菜单操作
+const handleCopy = () => {
+  const editor = isMaximized.value ? maximizedEditorInstance : editorInstance
+  if (editor) {
+    editor.focus()
+    document.execCommand('copy')
+  }
+  hideContextMenu()
+}
+
+const handleCut = () => {
+  const editor = isMaximized.value ? maximizedEditorInstance : editorInstance
+  if (editor) {
+    editor.focus()
+    document.execCommand('cut')
+  }
+  hideContextMenu()
+}
+
+const handlePaste = async () => {
+  const editor = isMaximized.value ? maximizedEditorInstance : editorInstance
+  if (editor) {
+    editor.focus()
+    try {
+      const text = await navigator.clipboard.readText()
+      const selection = editor.getSelection()
+      if (selection) {
+        editor.executeEdits('paste', [{
+          range: selection,
+          text: text
+        }])
+      }
+    } catch (err) {
+      document.execCommand('paste')
+    }
+  }
+  hideContextMenu()
+}
+
+const handleSelectAll = () => {
+  const editor = isMaximized.value ? maximizedEditorInstance : editorInstance
+  if (editor) {
+    const model = editor.getModel()
+    if (model) {
+      const totalLines = model.getLineCount()
+      const lastLineLength = model.getLineContent(totalLines).length
+      editor.setSelection(new monaco.Range(1, 1, totalLines, lastLineLength + 1))
+      editor.focus()
+    }
+  }
+  hideContextMenu()
+}
+
+const toggleMaximizeFromMenu = () => {
+  hideContextMenu()
+  toggleMaximize()
 }
 
 // ESC 键退出最大化
@@ -605,15 +774,8 @@ onMounted(async () => {
       e.event.preventDefault()
       e.event.stopPropagation()
       
-      // 获取光标位置
-      const position = e.target.position || editorInstance.getPosition()
-      
-      // 触发自定义右键菜单事件
-      emit('contextmenu', {
-        x: e.event.posx,
-        y: e.event.posy,
-        position: position
-      })
+      // 显示自定义右键菜单
+      showCustomContextMenu(e.event.posx, e.event.posy)
     })
 
     // 初始化 placeholder 可见性
@@ -972,5 +1134,76 @@ defineExpose({
 :global(body.resizing-monaco) {
   cursor: ns-resize !important;
   user-select: none !important;
+}
+
+/* 右键菜单样式 */
+.context-menu {
+  position: fixed;
+  z-index: 10001;
+  background: #252526;
+  border: 1px solid #454545;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  padding: 4px 0;
+  min-width: 200px;
+  font-size: 13px;
+  color: #cccccc;
+  user-select: none;
+}
+
+.context-menu-item {
+  display: flex;
+  align-items: center;
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: background-color 0.1s;
+}
+
+.context-menu-item:hover {
+  background: #094771;
+}
+
+.menu-icon {
+  width: 20px;
+  margin-right: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.menu-icon svg {
+  width: 16px;
+  height: 16px;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.menu-text {
+  flex: 1;
+}
+
+.menu-shortcut {
+  margin-left: 20px;
+  color: #969696;
+  font-size: 11px;
+}
+
+.context-menu-divider {
+  height: 1px;
+  background: #454545;
+  margin: 4px 0;
+}
+
+/* 右键菜单过渡动画 */
+.context-menu-enter-active,
+.context-menu-leave-active {
+  transition: opacity 0.15s, transform 0.15s;
+}
+
+.context-menu-enter-from,
+.context-menu-leave-to {
+  opacity: 0;
+  transform: scale(0.95);
 }
 </style>

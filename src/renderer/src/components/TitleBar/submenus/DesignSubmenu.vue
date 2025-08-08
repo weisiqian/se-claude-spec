@@ -10,11 +10,17 @@
       <span>更新设计文档</span>
       <span class="menu-shortcut">Ctrl+Shift+U</span>
     </div>
+    <div class="menu-divider"></div>
+    <div class="menu-item" @click="handleAction('list')">
+      <el-icon><Document /></el-icon>
+      <span>设计文档列表</span>
+      <span class="menu-shortcut">Ctrl+Shift+D</span>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { DocumentAdd, Edit } from '@element-plus/icons-vue'
+import { DocumentAdd, Edit, Document } from '@element-plus/icons-vue'
 
 const emit = defineEmits<{
   (e: 'action', type: string, action: string): void
@@ -59,5 +65,11 @@ const handleAction = (action: string) => {
   color: var(--wt-text-tertiary);
   white-space: nowrap;
   opacity: 0.8;
+}
+
+.menu-divider {
+  height: 1px;
+  background-color: rgba(255, 255, 255, 0.1);
+  margin: 4px 0;
 }
 </style>

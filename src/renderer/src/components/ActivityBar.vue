@@ -10,13 +10,14 @@ export interface ActivityItem {
 
 const props = defineProps<{
   isDark?: boolean
+  activeId?: string
 }>()
 
 const emit = defineEmits<{
   select: [id: string]
 }>()
 
-const activeId = ref<string>('')
+const internalActiveId = ref<string>('')
 
 const activities = computed<ActivityItem[]>(() => [
   { id: 'requirement', icon: 'requirement', label: '需求' },
@@ -24,9 +25,11 @@ const activities = computed<ActivityItem[]>(() => [
   { id: 'task', icon: 'task', label: '任务' }
 ])
 
+const activeId = computed(() => props.activeId || internalActiveId.value)
+
 const handleSelect = (id: string) => {
-  activeId.value = activeId.value === id ? '' : id
-  emit('select', activeId.value)
+  internalActiveId.value = internalActiveId.value === id ? '' : id
+  emit('select', internalActiveId.value)
 }
 </script>
 

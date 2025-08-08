@@ -7,6 +7,7 @@ import ResizablePanel from './components/ResizablePanel.vue'
 import ActivityBar from './components/ActivityBar.vue'
 import SidePanel from './components/SidePanel.vue'
 import SplitLayout from './components/SplitLayout.vue'
+import RequirementCreator from './components/RequirementCreator.vue'
 
 const projectPath = ref<string | null>(null)
 const showForm = ref(false)
@@ -19,6 +20,7 @@ const terminals = ref<Array<{ id: string; label?: string }>>([])
 const activeTerminalId = ref<string>('')
 const updateInterval = ref<NodeJS.Timeout | null>(null)
 const isMaximized = ref(false)
+const showRequirementCreator = ref(false)
 
 // 提供主题状态给子组件
 provide('isDark', isDark)
@@ -47,11 +49,17 @@ const handleActivitySelect = (id: string) => {
 
 const handlePanelItemSelect = (item: any) => {
   if (!item) {
-    // 点击新建按钮，打开原有的表单页面
-    formType.value = activePanel.value as 'requirement' | 'design' | 'task'
-    formAction.value = 'create'
-    showForm.value = true
-    activePanel.value = ''
+    // 点击新建按钮
+    if (activePanel.value === 'requirement') {
+      // 如果是需求管理，显示新的需求创建器
+      showRequirementCreator.value = true
+    } else {
+      // 其他类型使用原有的表单页面
+      formType.value = activePanel.value as 'requirement' | 'design' | 'task'
+      formAction.value = 'create'
+      showForm.value = true
+      activePanel.value = ''
+    }
   } else {
     // 编辑现有项
     formType.value = activePanel.value as 'requirement' | 'design' | 'task'
@@ -81,6 +89,12 @@ const updateTerminalState = () => {
     terminals.value = [...terminalRef.value.terminals]
     activeTerminalId.value = terminalRef.value.activeTerminalId
   }
+}
+
+const handleRequirementSubmit = (data: any) => {
+  console.log('新建需求提交:', data)
+  // TODO: 处理需求提交逻辑
+  showRequirementCreator.value = false
 }
 
 onMounted(async () => {
@@ -133,11 +147,20 @@ onUnmounted(() => {
         <template #activityBar>
           <ActivityBar 
             :is-dark="isDark"
+            :active-id="activePanel"
             @select="handleActivitySelect"
           />
         </template>
         <template #sidePanel>
+          <RequirementCreator
+            v-if="showRequirementCreator && activePanel === 'requirement'"
+            :project-path="projectPath"
+            @close="showRequirementCreator = false"
+            @back="showRequirementCreator = false"
+            @submit="handleRequirementSubmit"
+          />
           <SidePanel
+            v-else
             :type="activePanel"
             :is-dark="isDark"
             @close="activePanel = ''"

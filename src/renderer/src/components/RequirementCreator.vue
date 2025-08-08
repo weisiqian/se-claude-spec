@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, inject } from 'vue'
+import MonacoEditor from './MonacoEditor.vue'
 
 const props = defineProps<{
   projectPath?: string | null
@@ -163,13 +164,16 @@ const handleBack = () => {
               {{ isGenerating ? '生成中...' : '自动生成' }}
             </button>
           </label>
-          <textarea
+          <MonacoEditor
             v-model="prompt"
-            class="form-textarea"
+            language="markdown"
+            :height="200"
+            :min-height="150"
+            :max-height="400"
             placeholder="输入或自动生成提示词..."
-            rows="8"
-            :disabled="isExecuting"
-          ></textarea>
+            :readonly="isExecuting"
+            :enable-maximize="true"
+          />
         </div>
         
         <div class="form-group">
@@ -177,13 +181,16 @@ const handleBack = () => {
             JSON Schema
             <span class="optional">(可选)</span>
           </label>
-          <textarea
+          <MonacoEditor
             v-model="jsonSchema"
-            class="form-textarea code-input"
+            language="json"
+            :height="250"
+            :min-height="150"
+            :max-height="500"
             placeholder="输入 JSON Schema 定义（可选）..."
-            rows="10"
-            :disabled="isExecuting"
-          ></textarea>
+            :readonly="isExecuting"
+            :enable-maximize="true"
+          />
         </div>
       </div>
       
@@ -386,11 +393,6 @@ const handleBack = () => {
 
 .form-textarea::placeholder {
   color: #6e6e6e;
-}
-
-.code-input {
-  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-  font-size: 13px;
 }
 
 .action-buttons {

@@ -943,6 +943,31 @@ defineExpose({
   background-color: transparent !important;
 }
 
+/* 去掉 Monaco Editor 的蓝色焦点边框 */
+:global(.monaco-editor),
+:global(.monaco-diff-editor .synthetic-focus),
+:global(.monaco-editor),
+:global(.monaco-diff-editor [tabindex="0"]:focus),
+:global(.monaco-editor),
+:global(.monaco-diff-editor [tabindex="-1"]:focus),
+:global(.monaco-editor),
+:global(.monaco-diff-editor button:focus),
+:global(.monaco-editor),
+:global(.monaco-diff-editor input[type=button]:focus),
+:global(.monaco-editor),
+:global(.monaco-diff-editor input[type=checkbox]:focus),
+:global(.monaco-editor),
+:global(.monaco-diff-editor input[type=search]:focus),
+:global(.monaco-editor),
+:global(.monaco-diff-editor input[type=text]:focus),
+:global(.monaco-editor),
+:global(.monaco-diff-editor select:focus),
+:global(.monaco-editor),
+:global(.monaco-diff-editor textarea:focus) {
+  outline: none !important;
+  outline-width: 0 !important;
+}
+
 /* 拖动时的光标样式 */
 :global(body.resizing-monaco) {
   cursor: ns-resize !important;

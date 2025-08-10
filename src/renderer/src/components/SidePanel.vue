@@ -21,6 +21,8 @@ const emit = defineEmits<{
   close: []
   itemSelect: [item: DataItem | null]
   editRequirement: [item: DataItem]
+  createDesign: [requirement: DataItem]
+  viewRequirement: [iterationId: string]
 }>()
 
 const showForm = ref(false)
@@ -136,6 +138,25 @@ const loadItems = async () => {
       console.error('加载需求列表失败:', error)
       items.value = []
     }
+  } else if (props.type === 'design') {
+    // 设计管理从文件系统读取
+    try {
+      const designs = await window.api.getDesigns()
+      
+      items.value = designs.map((design: any) => ({
+        ...design,
+        title: design.iterationId ? `设计 ${design.iterationId}` : design.title,
+        description: design.userDesignRequest?.length > 100 ? 
+          design.userDesignRequest.substring(0, 100) + '...' : 
+          (design.userDesignRequest || design.description),
+        createdAt: new Date(design.createdAt),
+        updatedAt: design.updatedAt ? new Date(design.updatedAt) : undefined,
+        requirementIterationId: design.requirementIterationId
+      }))
+    } catch (error) {
+      console.error('加载设计列表失败:', error)
+      items.value = []
+    }
   } else {
     // 其他类型仍从 localStorage 读取
     const storageKey = `${props.type}_items`
@@ -173,6 +194,18 @@ const handleEditRequirement = (item: DataItem) => {
   emit('editRequirement', item)
 }
 
+const handleDesign = (item: DataItem) => {
+  // 创建设计文档
+  emit('createDesign', item)
+}
+
+const handleViewRequirement = (item: DataItem) => {
+  // 查看设计关联的需求
+  if (item.iterationId) {
+    emit('viewRequirement', item.iterationId)
+  }
+}
+
 const handleDelete = (item: DataItem) => {
   deleteTarget.value = item
   showDeleteDialog.value = true
@@ -198,6 +231,25 @@ const confirmDelete = async () => {
       } catch (error) {
         console.error('删除需求出错:', error)
         alert('删除需求时发生错误')
+      }
+    } else if (props.type === 'design' && deleteTarget.value.iterationId) {
+      // 设计类型，调用API删除相关文件
+      try {
+        const result = await window.api.deleteDesign(deleteTarget.value.iterationId)
+        if (result.success) {
+          console.log(`成功删除设计 ${deleteTarget.value.iterationId}，删除了 ${result.deletedFiles?.length || 0} 个文件`)
+          // 从列表中移除
+          const index = items.value.findIndex(i => i.id === deleteTarget.value!.id)
+          if (index > -1) {
+            items.value.splice(index, 1)
+          }
+        } else {
+          console.error('删除设计失败:', result.error)
+          alert(`删除设计失败: ${result.error}`)
+        }
+      } catch (error) {
+        console.error('删除设计出错:', error)
+        alert('删除设计时发生错误')
       }
     } else {
       // 其他类型仍从localStorage删除
@@ -366,6 +418,18 @@ if (window.api?.onWorkspaceChanged) {
           <div class="item-header">
             <h4 class="item-title">{{ item.title }}</h4>
             <div class="item-badges">
+              <span 
+                v-if="type === 'design' && item.iterationId" 
+                class="requirement-badge clickable-badge"
+                @click.stop="handleViewRequirement(item)"
+                title="点击查看关联需求"
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                  <polyline points="14 2 14 8 20 8"/>
+                </svg>
+                迭代ID: {{ item.iterationId }}
+              </span>
               <span v-if="item.executionStatus" class="execution-badge" :class="`execution-${item.executionStatus}`">
                 <svg v-if="item.executionStatus === 'executed'" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
@@ -386,6 +450,18 @@ if (window.api?.onWorkspaceChanged) {
           <div class="item-footer">
             <span class="item-date">{{ formatDate(item.createdAt) }}</span>
             <div class="item-actions">
+              <button 
+                v-if="type === 'requirement' && item.executionStatus === 'executed'" 
+                class="action-btn design-btn" 
+                @click.stop="handleDesign(item)" 
+                title="设计">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 19l7-7 3 3-7 7-3-3z"/>
+                  <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/>
+                  <path d="M2 2l7.586 7.586"/>
+                  <circle cx="11" cy="11" r="2"/>
+                </svg>
+              </button>
               <button class="action-btn edit-btn" @click.stop="handleEditRequirement(item)" title="编辑">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
@@ -672,6 +748,34 @@ if (window.api?.onWorkspaceChanged) {
   gap: 6px;
 }
 
+.requirement-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  font-size: 11px;
+  border-radius: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  background: rgba(156, 39, 176, 0.15);
+  color: #9c27b0;
+}
+
+.requirement-badge.clickable-badge {
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.requirement-badge.clickable-badge:hover {
+  background: rgba(156, 39, 176, 0.25);
+  transform: translateY(-1px);
+}
+
+.requirement-badge svg {
+  width: 12px;
+  height: 12px;
+}
+
 .execution-badge {
   display: inline-flex;
   align-items: center;
@@ -767,6 +871,12 @@ if (window.api?.onWorkspaceChanged) {
   justify-content: center;
   color: #969696;
   transition: all 0.2s ease;
+}
+
+.design-btn:hover {
+  background: rgba(156, 39, 176, 0.1);
+  border-color: rgba(156, 39, 176, 0.3);
+  color: #9c27b0;
 }
 
 .edit-btn:hover {

@@ -131,6 +131,17 @@
           <span class="menu-text">用户需求</span>
           <span class="menu-code">{{USER_REQUIREMENT}}</span>
         </div>
+        <div v-if="props.showDesignPlaceholder" class="context-menu-item" @click="insertPlaceholder('USER_DESIGN_REQUEST')">
+          <span class="menu-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+              <circle cx="8.5" cy="8.5" r="1.5"/>
+              <polyline points="21 15 16 10 5 21"/>
+            </svg>
+          </span>
+          <span class="menu-text">设计要求</span>
+          <span class="menu-code">{{USER_DESIGN_REQUEST}}</span>
+        </div>
         <div class="context-menu-item" @click="insertPlaceholder('JSON_SCHEMA')">
           <span class="menu-icon">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -283,6 +294,7 @@ interface Props {
   enablePreview?: boolean
   enablePlaceholder?: boolean
   placeholderData?: Record<string, string>
+  showDesignPlaceholder?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -302,7 +314,8 @@ const props = withDefaults(defineProps<Props>(), {
   enableMaximize: true,
   enablePreview: false,
   enablePlaceholder: false,
-  placeholderData: () => ({})
+  placeholderData: () => ({}),
+  showDesignPlaceholder: false
 })
 
 const emit = defineEmits<{

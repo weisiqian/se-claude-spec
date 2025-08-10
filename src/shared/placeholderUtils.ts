@@ -6,6 +6,7 @@
 
 export interface PlaceholderData {
   userRequirement?: string
+  userDesignRequest?: string
   jsonSchema?: string
   iterationId?: string
   [key: string]: any
@@ -24,6 +25,11 @@ export function replacePlaceholders(text: string, data: PlaceholderData): string
   // 替换用户需求 - 仅支持大写格式
   if (data.userRequirement !== undefined) {
     result = result.replace(/\{\{USER_REQUIREMENT\}\}/g, data.userRequirement)
+  }
+  
+  // 替换用户设计要求 - 仅支持大写格式
+  if (data.userDesignRequest !== undefined) {
+    result = result.replace(/\{\{USER_DESIGN_REQUEST\}\}/g, data.userDesignRequest || '')
   }
   
   // 替换 JSON Schema - 仅支持大写格式
@@ -72,11 +78,13 @@ export function validatePlaceholders(text: string, data: PlaceholderData): strin
     // 只检查大写格式的占位符
     if (placeholder === 'USER_REQUIREMENT' && data.userRequirement === undefined) {
       missingPlaceholders.push(placeholder)
+    } else if (placeholder === 'USER_DESIGN_REQUEST' && data.userDesignRequest === undefined) {
+      missingPlaceholders.push(placeholder)
     } else if (placeholder === 'JSON_SCHEMA' && data.jsonSchema === undefined) {
       missingPlaceholders.push(placeholder)
     } else if (placeholder === 'ITERATION_ID' && data.iterationId === undefined) {
       missingPlaceholders.push(placeholder)
-    } else if (!['USER_REQUIREMENT', 'JSON_SCHEMA', 'ITERATION_ID'].includes(placeholder)) {
+    } else if (!['USER_REQUIREMENT', 'USER_DESIGN_REQUEST', 'JSON_SCHEMA', 'ITERATION_ID'].includes(placeholder)) {
       // 不是预定义的占位符，视为缺失
       missingPlaceholders.push(placeholder)
     }
@@ -90,6 +98,7 @@ export function validatePlaceholders(text: string, data: PlaceholderData): strin
  */
 export const SUPPORTED_PLACEHOLDERS = {
   USER_REQUIREMENT: '用户需求',
+  USER_DESIGN_REQUEST: '设计要求',
   JSON_SCHEMA: 'JSON Schema',
   ITERATION_ID: '迭代ID'
 } as const

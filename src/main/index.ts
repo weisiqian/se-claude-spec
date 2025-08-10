@@ -419,6 +419,246 @@ app.whenReady().then(() => {
     }
   })
 
+  // 保存设计
+  ipcMain.handle('save-design', async (_, data: {
+    iterationId: string
+    userDesignRequest: string
+    prompt: string
+    jsonSchema?: string
+    requirementIterationId?: string
+    createdAt: string
+    updatedAt?: string
+  }) => {
+    try {
+      const workspace = getCurrentWorkspace()
+      if (!workspace) {
+        return { success: false, error: '未设置工作空间' }
+      }
+      
+      // 创建 .se-claude/designs 目录
+      const seClaudeDir = path.join(workspace, '.se-claude')
+      const designDir = path.join(seClaudeDir, 'designs')
+      if (!fs.existsSync(designDir)) {
+        fs.mkdirSync(designDir, { recursive: true })
+      }
+      
+      // 保存设计JSON数据
+      const jsonPath = path.join(designDir, `${data.iterationId}.json`)
+      const jsonData = {
+        ...data,
+        id: data.iterationId,
+        updatedAt: data.updatedAt || new Date().toISOString()
+      }
+      
+      fs.writeFileSync(jsonPath, JSON.stringify(jsonData, null, 2), 'utf-8')
+      
+      // 创建 .claude/commands/设计迭代ID 目录
+      const claudeDir = path.join(workspace, '.claude')
+      const commandsDir = path.join(claudeDir, 'commands')
+      const iterationDir = path.join(commandsDir, data.iterationId)
+      
+      if (!fs.existsSync(iterationDir)) {
+        fs.mkdirSync(iterationDir, { recursive: true })
+      }
+      
+      // 读取关联需求的内容（如果有）
+      let userRequirement = ''
+      if (data.requirementIterationId) {
+        const requirementPath = path.join(workspace, '.se-claude', 'requirements', `${data.requirementIterationId}.json`)
+        if (fs.existsSync(requirementPath)) {
+          try {
+            const requirementData = JSON.parse(fs.readFileSync(requirementPath, 'utf-8'))
+            userRequirement = requirementData.userRequirement || ''
+          } catch (err) {
+            console.error('读取需求文件失败:', err)
+          }
+        }
+      }
+      
+      // 使用占位符替换函数生成最终的提示词内容
+      const finalPrompt = replacePlaceholders(data.prompt, {
+        userDesignRequest: data.userDesignRequest || '',
+        userRequirement: userRequirement,
+        jsonSchema: data.jsonSchema || '',
+        iterationId: data.iterationId
+      })
+      
+      // 保存替换后的提示词到 .claude/commands/设计迭代ID/design.md
+      const promptPath = path.join(iterationDir, 'design.md')
+      fs.writeFileSync(promptPath, finalPrompt, 'utf-8')
+      
+      return {
+        success: true,
+        jsonPath,
+        promptPath
+      }
+    } catch (error) {
+      console.error('保存设计失败:', error)
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : '未知错误'
+      }
+    }
+  })
+  
+  // 获取设计列表
+  ipcMain.handle('get-designs', async () => {
+    try {
+      const workspace = getCurrentWorkspace()
+      if (!workspace) {
+        return []
+      }
+      
+      const designDir = path.join(workspace, '.se-claude', 'designs')
+      if (!fs.existsSync(designDir)) {
+        return []
+      }
+      
+      // 读取所有设计JSON文件
+      const files = fs.readdirSync(designDir)
+      const designs = []
+      
+      for (const file of files) {
+        if (file.endsWith('.json')) {
+          const filePath = path.join(designDir, file)
+          try {
+            const content = fs.readFileSync(filePath, 'utf-8')
+            const design = JSON.parse(content)
+            designs.push(design)
+          } catch (err) {
+            console.error(`读取设计文件失败: ${filePath}`, err)
+          }
+        }
+      }
+      
+      // 按创建时间排序（最新的在前）
+      designs.sort((a, b) => {
+        const dateA = new Date(a.createdAt).getTime()
+        const dateB = new Date(b.createdAt).getTime()
+        return dateB - dateA
+      })
+      
+      return designs
+    } catch (error) {
+      console.error('获取设计列表失败:', error)
+      return []
+    }
+  })
+  
+  // 更新设计
+  ipcMain.handle('update-design', async (_, data) => {
+    try {
+      const workspace = getCurrentWorkspace()
+      if (!workspace) {
+        return { success: false, error: '未找到工作空间' }
+      }
+      
+      const designDir = path.join(workspace, '.se-claude', 'designs')
+      const jsonPath = path.join(designDir, `${data.iterationId}.json`)
+      
+      // 检查文件是否存在
+      if (!fs.existsSync(jsonPath)) {
+        // 如果不存在，调用保存方法创建新文件
+        return ipcMain.emit('save-design', _, data)
+      }
+      
+      // 更新 JSON 数据
+      const jsonData = {
+        ...data,
+        updatedAt: new Date().toISOString()
+      }
+      fs.writeFileSync(jsonPath, JSON.stringify(jsonData, null, 2), 'utf-8')
+      
+      // 读取关联需求的内容（如果有）
+      let userRequirement = ''
+      if (data.requirementIterationId) {
+        const requirementPath = path.join(workspace, '.se-claude', 'requirements', `${data.requirementIterationId}.json`)
+        if (fs.existsSync(requirementPath)) {
+          try {
+            const requirementData = JSON.parse(fs.readFileSync(requirementPath, 'utf-8'))
+            userRequirement = requirementData.userRequirement || ''
+          } catch (err) {
+            console.error('读取需求文件失败:', err)
+          }
+        }
+      }
+      
+      // 更新提示词文件
+      const commandsDir = path.join(workspace, '.claude', 'commands', data.iterationId)
+      if (!fs.existsSync(commandsDir)) {
+        fs.mkdirSync(commandsDir, { recursive: true })
+      }
+      
+      const finalPrompt = replacePlaceholders(data.prompt, {
+        userDesignRequest: data.userDesignRequest || '',
+        userRequirement: userRequirement,
+        jsonSchema: data.jsonSchema || '',
+        iterationId: data.iterationId
+      })
+      
+      const promptPath = path.join(commandsDir, 'design.md')
+      fs.writeFileSync(promptPath, finalPrompt, 'utf-8')
+      
+      return {
+        success: true,
+        jsonPath,
+        promptPath
+      }
+    } catch (error) {
+      console.error('更新设计失败:', error)
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : '未知错误'
+      }
+    }
+  })
+  
+  // 删除设计
+  ipcMain.handle('delete-design', async (_, iterationId: string) => {
+    try {
+      const workspace = getCurrentWorkspace()
+      if (!workspace) {
+        return { success: false, error: '未找到工作空间' }
+      }
+      
+      const deletedFiles: string[] = []
+      
+      // 1. 删除 .se-claude/designs 目录下的文件
+      const designDir = path.join(workspace, '.se-claude', 'designs')
+      const jsonFile = path.join(designDir, `${iterationId}.json`)
+      
+      if (fs.existsSync(jsonFile)) {
+        fs.unlinkSync(jsonFile)
+        deletedFiles.push(jsonFile)
+      }
+      
+      // 2. 删除 .claude/commands/设计迭代ID 目录
+      const commandsDir = path.join(workspace, '.claude', 'commands', iterationId)
+      if (fs.existsSync(commandsDir)) {
+        fs.rmSync(commandsDir, { recursive: true, force: true })
+        deletedFiles.push(commandsDir)
+      }
+      
+      // 3. 删除 .design 目录下的设计输出文件（如果存在）
+      const designOutputDir = path.join(workspace, '.design', iterationId)
+      if (fs.existsSync(designOutputDir)) {
+        fs.rmSync(designOutputDir, { recursive: true, force: true })
+        deletedFiles.push(designOutputDir)
+      }
+      
+      return {
+        success: true,
+        deletedFiles
+      }
+    } catch (error) {
+      console.error('删除设计失败:', error)
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : '未知错误'
+      }
+    }
+  })
+
   // 创建主窗口（默认最大化）
   createWindow()
   

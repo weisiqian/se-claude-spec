@@ -67,6 +67,37 @@ declare global {
         error?: string
         deletedFiles?: string[]
       }>
+      
+      // 设计相关 API
+      saveDesign: (data: {
+        iterationId: string
+        userDesignRequest: string
+        prompt: string
+        jsonSchema?: string
+        requirementIterationId?: string
+        createdAt: string
+        updatedAt?: string
+      }) => Promise<{
+        success: boolean
+        error?: string
+        jsonPath?: string
+        promptPath?: string
+      }>
+      
+      getDesigns: () => Promise<any[]>
+      
+      updateDesign: (data: any) => Promise<{
+        success: boolean
+        error?: string
+        jsonPath?: string
+        promptPath?: string
+      }>
+      
+      deleteDesign: (iterationId: string) => Promise<{
+        success: boolean
+        error?: string
+        deletedFiles?: string[]
+      }>
     }
   }
 }

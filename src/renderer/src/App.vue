@@ -10,6 +10,7 @@ import SplitLayout from './components/SplitLayout.vue'
 import RequirementCreator from './components/RequirementCreator.vue'
 import RequirementStatus from './components/RequirementStatus.vue'
 import RequirementEditor from './components/RequirementEditor.vue'
+import DesignEditor from './components/DesignEditor.vue'
 
 const projectPath = ref<string | null>(null)
 const showForm = ref(false)
@@ -25,7 +26,9 @@ const isMaximized = ref(false)
 const showRequirementCreator = ref(false)
 const showRequirementStatus = ref(false)
 const showRequirementEditor = ref(false)
+const showDesignEditor = ref(false)
 const selectedRequirement = ref<any>(null)
+const selectedDesign = ref<any>(null)
 
 // 提供主题状态给子组件
 provide('isDark', isDark)
@@ -37,6 +40,17 @@ const handleMenuAction = (type: string, action: string) => {
     showRequirementCreator.value = true
     showRequirementStatus.value = false
     showRequirementEditor.value = false
+    showDesignEditor.value = false
+    showForm.value = false
+  } else if (type === 'design' && action === 'create') {
+    // 点击新建设计文档，打开设计编辑器（无关联需求）
+    activePanel.value = 'design'
+    selectedRequirement.value = null
+    selectedDesign.value = null
+    showDesignEditor.value = true
+    showRequirementCreator.value = false
+    showRequirementStatus.value = false
+    showRequirementEditor.value = false
     showForm.value = false
   } else if (action === 'list') {
     // 点击列表项，显示对应的侧边栏
@@ -45,8 +59,9 @@ const handleMenuAction = (type: string, action: string) => {
     showRequirementCreator.value = false
     showRequirementStatus.value = false
     showRequirementEditor.value = false
+    showDesignEditor.value = false
   } else {
-    // 其他操作（设计和任务的创建）
+    // 其他操作（任务的创建等）
     formType.value = type as 'requirement' | 'design' | 'task'
     formAction.value = action as 'create' | 'update' | 'execute'
     showForm.value = true
@@ -54,6 +69,7 @@ const handleMenuAction = (type: string, action: string) => {
     showRequirementCreator.value = false
     showRequirementStatus.value = false
     showRequirementEditor.value = false
+    showDesignEditor.value = false
   }
 }
 
@@ -82,6 +98,15 @@ const handlePanelItemSelect = (item: any) => {
       showRequirementCreator.value = true
       showRequirementStatus.value = false
       showRequirementEditor.value = false
+      showDesignEditor.value = false
+    } else if (activePanel.value === 'design') {
+      // 如果是设计管理，显示设计编辑器（新建模式，无关联需求）
+      selectedRequirement.value = null
+      selectedDesign.value = null
+      showDesignEditor.value = true
+      showRequirementCreator.value = false
+      showRequirementStatus.value = false
+      showRequirementEditor.value = false
     } else {
       // 其他类型使用原有的表单页面
       formType.value = activePanel.value as 'requirement' | 'design' | 'task'
@@ -96,6 +121,15 @@ const handlePanelItemSelect = (item: any) => {
       selectedRequirement.value = item
       showRequirementStatus.value = true
       showRequirementCreator.value = false
+      showRequirementEditor.value = false
+      showDesignEditor.value = false
+    } else if (activePanel.value === 'design') {
+      // 如果是设计，编辑设计文档
+      selectedDesign.value = item
+      selectedRequirement.value = null // 编辑时不需要关联需求
+      showDesignEditor.value = true
+      showRequirementCreator.value = false
+      showRequirementStatus.value = false
       showRequirementEditor.value = false
     } else {
       // 其他类型编辑
@@ -148,6 +182,19 @@ const handleEditRequirement = (item: any) => {
   showRequirementEditor.value = true
   showRequirementCreator.value = false
   showRequirementStatus.value = false
+  showDesignEditor.value = false
+}
+
+const handleCreateDesign = (requirement: any) => {
+  // 为需求创建设计文档
+  selectedRequirement.value = requirement
+  selectedDesign.value = null // 新建设计
+  showDesignEditor.value = true
+  showRequirementCreator.value = false
+  showRequirementStatus.value = false
+  showRequirementEditor.value = false
+  // 保持 activePanel 为 'requirement'，这样侧边栏区域仍然显示
+  // activePanel.value 用于控制整个侧边栏区域的显示
 }
 
 const handleSaveRequirement = (shouldClose = true) => {
@@ -156,6 +203,37 @@ const handleSaveRequirement = (shouldClose = true) => {
     showRequirementEditor.value = false
   }
   // 需求列表会自动刷新
+}
+
+const handleSaveDesign = async (designData: any) => {
+  // 设计已经在 DesignEditor 组件中保存到文件系统
+  // 这里只需要关闭编辑器并显示设计列表
+  showDesignEditor.value = false
+  activePanel.value = 'design'
+}
+
+const handleViewRequirement = async (iterationId: string) => {
+  // 从设计列表点击迭代ID，查看对应需求
+  try {
+    // 获取所有需求，找到对应的需求
+    const requirements = await window.api.getRequirements()
+    const requirement = requirements.find((req: any) => req.iterationId === iterationId)
+    
+    if (requirement) {
+      // 切换到需求面板并显示需求详情
+      activePanel.value = 'requirement'
+      selectedRequirement.value = {
+        ...requirement,
+        executionStatus: 'executed' // 设计关联的需求肯定是已执行的
+      }
+      showRequirementStatus.value = true
+      showRequirementCreator.value = false
+      showRequirementEditor.value = false
+      showDesignEditor.value = false
+    }
+  } catch (error) {
+    console.error('查看需求失败:', error)
+  }
 }
 
 onMounted(async () => {
@@ -255,6 +333,16 @@ onUnmounted(() => {
             @save="handleSaveRequirement"
             @execute-command="handleExecuteCommand"
           />
+          <DesignEditor
+            v-else-if="showDesignEditor && activePanel"
+            :requirement="selectedRequirement"
+            :design="selectedDesign"
+            :is-new="!selectedDesign"
+            @close="() => { showDesignEditor = false; activePanel = 'requirement' }"
+            @back="() => { showDesignEditor = false; activePanel = 'requirement' }"
+            @save="handleSaveDesign"
+            @execute-command="handleExecuteCommand"
+          />
           <SidePanel
             v-else
             :type="activePanel"
@@ -262,6 +350,8 @@ onUnmounted(() => {
             @close="activePanel = ''"
             @item-select="handlePanelItemSelect"
             @edit-requirement="handleEditRequirement"
+            @create-design="handleCreateDesign"
+            @view-requirement="handleViewRequirement"
           />
         </template>
         <template #terminal>

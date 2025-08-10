@@ -12,6 +12,7 @@ import {
   getRecentDirectories,
   cleanupRecentDirectories 
 } from './workspaceManager'
+import { replacePlaceholders } from './placeholderReplacer'
 
 let terminalManager: TerminalManager
 let mainWindow: BrowserWindow | null = null
@@ -186,6 +187,37 @@ app.whenReady().then(() => {
     return dirPath
   })
   
+  // 检查需求执行状态
+  ipcMain.handle('check-requirement-status', async (_, iterationId: string) => {
+    try {
+      const workspace = getCurrentWorkspace()
+      if (!workspace) {
+        return { executed: false }
+      }
+      
+      // 检查 .design/iterationId/specs/requirements.md 是否存在
+      const designPath = path.join(workspace, '.design', iterationId, 'specs', 'requirements.md')
+      
+      if (fs.existsSync(designPath)) {
+        // 读取文件内容
+        const content = fs.readFileSync(designPath, 'utf-8')
+        return {
+          executed: true,
+          content: content,
+          filePath: designPath
+        }
+      } else {
+        return {
+          executed: false,
+          filePath: designPath
+        }
+      }
+    } catch (error) {
+      console.error('检查需求状态失败:', error)
+      return { executed: false, error: error instanceof Error ? error.message : '检查失败' }
+    }
+  })
+  
   // 获取需求列表
   ipcMain.handle('get-requirements', async () => {
     try {
@@ -263,18 +295,18 @@ app.whenReady().then(() => {
         fs.mkdirSync(iterationDir, { recursive: true })
       }
       
-      // 保存表单数据到 .se-claude 目录
+      // 保存表单数据到 .se-claude 目录（保存原始提示词，包含占位符）
       const formDataPath = path.join(seClaudeDir, `${data.iterationId}.json`)
       fs.writeFileSync(formDataPath, JSON.stringify(data, null, 2), 'utf-8')
       
-      // 生成最终的提示词内容
-      let finalPrompt = data.prompt
+      // 使用全局占位符替换函数生成最终的提示词内容
+      const finalPrompt = replacePlaceholders(data.prompt, {
+        userRequirement: data.userRequirement,
+        jsonSchema: data.jsonSchema,
+        iterationId: data.iterationId
+      })
       
-      // 替换占位符
-      finalPrompt = finalPrompt.replace(/{{USER_REQUIREMENT}}/g, data.userRequirement)
-      finalPrompt = finalPrompt.replace(/{{JSON_SCHEMA}}/g, data.jsonSchema || '')
-      
-      // 保存提示词到 .claude/commands/迭代ID/requirement.md
+      // 保存替换后的提示词到 .claude/commands/迭代ID/requirement.md
       const promptPath = path.join(iterationDir, 'requirement.md')
       fs.writeFileSync(promptPath, finalPrompt, 'utf-8')
       

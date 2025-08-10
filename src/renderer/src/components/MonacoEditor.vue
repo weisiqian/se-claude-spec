@@ -118,7 +118,7 @@
         @mouseenter="keepPlaceholderMenu"
         @mouseleave="hidePlaceholderMenu"
       >
-        <div class="context-menu-item" @click="insertPlaceholder('userRequirement')">
+        <div class="context-menu-item" @click="insertPlaceholder('USER_REQUIREMENT')">
           <span class="menu-icon">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
@@ -129,9 +129,9 @@
             </svg>
           </span>
           <span class="menu-text">用户需求</span>
-          <span class="menu-code">{{userRequirement}}</span>
+          <span class="menu-code">{{USER_REQUIREMENT}}</span>
         </div>
-        <div class="context-menu-item" @click="insertPlaceholder('jsonSchema')">
+        <div class="context-menu-item" @click="insertPlaceholder('JSON_SCHEMA')">
           <span class="menu-icon">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
@@ -140,7 +140,18 @@
             </svg>
           </span>
           <span class="menu-text">JSON Schema</span>
-          <span class="menu-code">{{jsonSchema}}</span>
+          <span class="menu-code">{{JSON_SCHEMA}}</span>
+        </div>
+        <div class="context-menu-item" @click="insertPlaceholder('ITERATION_ID')">
+          <span class="menu-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/>
+              <circle cx="12" cy="12" r="3"/>
+              <path d="M12 5v.01M12 19v.01M4.22 7.22l.01.01M19.78 16.78l.01.01M4.22 16.78l.01.01M19.78 7.22l.01.01"/>
+            </svg>
+          </span>
+          <span class="menu-text">迭代ID</span>
+          <span class="menu-code">{{ITERATION_ID}}</span>
         </div>
       </div>
     </transition>
@@ -236,6 +247,7 @@ import { ref, onMounted, onUnmounted, watch, computed, nextTick } from 'vue'
 import * as monaco from 'monaco-editor/esm/vs/editor/editor.api'
 import type { editor } from 'monaco-editor'
 import { renderMarkdown } from '@renderer/utils/markdownRenderer'
+import { replacePlaceholders } from '@renderer/utils/placeholderReplacer'
 import '@renderer/styles/markdown.css'
 
 // 配置 Monaco 环境 - 完全禁用 workers
@@ -575,7 +587,7 @@ const keepPlaceholderMenu = () => {
 }
 
 // 插入占位符
-const insertPlaceholder = (type: 'userRequirement' | 'jsonSchema') => {
+const insertPlaceholder = (type: string) => {
   const placeholder = `{{${type}}}`
   const editor = isMaximized.value ? maximizedEditorInstance : editorInstance
   
@@ -698,16 +710,9 @@ const renderedMarkdown = computed(() => {
   
   let content = props.modelValue
   
-  // 预览时替换占位符
-  if (props.placeholderData) {
-    // 替换 {{userRequirement}}
-    if (props.placeholderData.userRequirement) {
-      content = content.replace(/\{\{userRequirement\}\}/g, props.placeholderData.userRequirement)
-    }
-    // 替换 {{jsonSchema}}
-    if (props.placeholderData.jsonSchema) {
-      content = content.replace(/\{\{jsonSchema\}\}/g, props.placeholderData.jsonSchema)
-    }
+  // 在预览模式下替换占位符，使用统一的替换函数
+  if (props.enablePlaceholder && props.placeholderData) {
+    content = replacePlaceholders(content, props.placeholderData)
   }
   
   return renderMarkdown(content)

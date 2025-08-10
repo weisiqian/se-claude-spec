@@ -31,7 +31,8 @@ const api = {
     jsonSchema: string
     createdAt: string
   }) => ipcRenderer.invoke('save-requirement', data),
-  getRequirements: () => ipcRenderer.invoke('get-requirements')
+  getRequirements: () => ipcRenderer.invoke('get-requirements'),
+  checkRequirementStatus: (iterationId: string) => ipcRenderer.invoke('check-requirement-status', iterationId)
 }
 
 // Use `contextBridge` APIs to expose Electron APIs to

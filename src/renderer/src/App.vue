@@ -8,6 +8,7 @@ import ActivityBar from './components/ActivityBar.vue'
 import SidePanel from './components/SidePanel.vue'
 import SplitLayout from './components/SplitLayout.vue'
 import RequirementCreator from './components/RequirementCreator.vue'
+import RequirementStatus from './components/RequirementStatus.vue'
 
 const projectPath = ref<string | null>(null)
 const showForm = ref(false)
@@ -21,6 +22,8 @@ const activeTerminalId = ref<string>('')
 const updateInterval = ref<NodeJS.Timeout | null>(null)
 const isMaximized = ref(false)
 const showRequirementCreator = ref(false)
+const showRequirementStatus = ref(false)
+const selectedRequirement = ref<any>(null)
 
 // 提供主题状态给子组件
 provide('isDark', isDark)
@@ -53,6 +56,7 @@ const handlePanelItemSelect = (item: any) => {
     if (activePanel.value === 'requirement') {
       // 如果是需求管理，显示新的需求创建器
       showRequirementCreator.value = true
+      showRequirementStatus.value = false
     } else {
       // 其他类型使用原有的表单页面
       formType.value = activePanel.value as 'requirement' | 'design' | 'task'
@@ -61,11 +65,19 @@ const handlePanelItemSelect = (item: any) => {
       activePanel.value = ''
     }
   } else {
-    // 编辑现有项
-    formType.value = activePanel.value as 'requirement' | 'design' | 'task'
-    formAction.value = 'update'
-    showForm.value = true
-    activePanel.value = ''
+    // 点击现有项
+    if (activePanel.value === 'requirement') {
+      // 如果是需求，显示需求状态页面
+      selectedRequirement.value = item
+      showRequirementStatus.value = true
+      showRequirementCreator.value = false
+    } else {
+      // 其他类型编辑
+      formType.value = activePanel.value as 'requirement' | 'design' | 'task'
+      formAction.value = 'update'
+      showForm.value = true
+      activePanel.value = ''
+    }
   }
 }
 
@@ -93,8 +105,8 @@ const updateTerminalState = () => {
 
 const handleRequirementSubmit = (data: any) => {
   console.log('新建需求提交:', data)
-  // 关闭创建器后，需求列表会自动刷新（SidePanel 监听了工作空间变化）
-  showRequirementCreator.value = false
+  // 不再自动关闭创建器，让用户停留在当前页面继续操作
+  // 需求列表会自动刷新（SidePanel 监听了工作空间变化）
 }
 
 const handleExecuteCommand = async (command: string) => {
@@ -184,6 +196,13 @@ onUnmounted(() => {
             @close="showRequirementCreator = false"
             @back="showRequirementCreator = false"
             @submit="handleRequirementSubmit"
+            @execute-command="handleExecuteCommand"
+          />
+          <RequirementStatus
+            v-else-if="showRequirementStatus && activePanel === 'requirement' && selectedRequirement"
+            :requirement="selectedRequirement"
+            @close="showRequirementStatus = false"
+            @back="showRequirementStatus = false"
             @execute-command="handleExecuteCommand"
           />
           <SidePanel

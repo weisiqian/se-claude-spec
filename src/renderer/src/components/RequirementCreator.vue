@@ -173,7 +173,10 @@ const showUnsavedWarning = ref(false)
 const pendingAction = ref<'close' | 'back' | null>(null)
 
 const handleClose = () => {
-  if (hasUnsavedContent.value) {
+  // 如果已经生成了命令，允许直接关闭
+  if (generatedCommand.value) {
+    emit('close')
+  } else if (hasUnsavedContent.value) {
     pendingAction.value = 'close'
     showUnsavedWarning.value = true
   } else {
@@ -182,7 +185,10 @@ const handleClose = () => {
 }
 
 const handleBack = () => {
-  if (hasUnsavedContent.value) {
+  // 如果已经生成了命令，允许直接返回
+  if (generatedCommand.value) {
+    emit('back')
+  } else if (hasUnsavedContent.value) {
     pendingAction.value = 'back'
     showUnsavedWarning.value = true
   } else {
@@ -284,7 +290,8 @@ const cancelLeave = () => {
             :enable-placeholder="true"
             :placeholder-data="{
               userRequirement: userRequirement || '用户需求将在这里显示',
-              jsonSchema: jsonSchema || 'JSON Schema 将在这里显示'
+              jsonSchema: jsonSchema || 'JSON Schema 将在这里显示',
+              iterationId: iterationId || '迭代ID将在这里显示'
             }"
           />
         </div>

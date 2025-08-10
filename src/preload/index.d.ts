@@ -46,6 +46,12 @@ declare global {
         createdAt: string
         status: string
       }>>
+      checkRequirementStatus: (iterationId: string) => Promise<{
+        executed: boolean
+        content?: string
+        filePath?: string
+        error?: string
+      }>
     }
   }
 }

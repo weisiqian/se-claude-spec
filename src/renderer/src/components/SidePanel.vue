@@ -26,6 +26,10 @@ const searchText = ref('')
 
 const items = ref<DataItem[]>([])
 
+// 删除确认弹窗相关
+const showDeleteDialog = ref(false)
+const deleteTarget = ref<DataItem | null>(null)
+
 const filteredItems = computed(() => {
   if (!searchText.value) return items.value
   const search = searchText.value.toLowerCase()
@@ -132,18 +136,30 @@ const handleCreate = () => {
 }
 
 const handleEdit = (item: DataItem) => {
-  // 编辑时也跳转到原有的表单页面
+  // 如果是需求类型，点击查看详情
+  // 对于其他类型，跳转到编辑页面
   emit('itemSelect', item)
 }
 
 const handleDelete = (item: DataItem) => {
-  if (confirm(`确定要删除"${item.title}"吗？`)) {
-    const index = items.value.findIndex(i => i.id === item.id)
+  deleteTarget.value = item
+  showDeleteDialog.value = true
+}
+
+const confirmDelete = () => {
+  if (deleteTarget.value) {
+    const index = items.value.findIndex(i => i.id === deleteTarget.value!.id)
     if (index > -1) {
       items.value.splice(index, 1)
       saveItems()
     }
   }
+  cancelDelete()
+}
+
+const cancelDelete = () => {
+  showDeleteDialog.value = false
+  deleteTarget.value = null
 }
 
 const handleSubmit = () => {
@@ -320,6 +336,35 @@ if (window.api?.onWorkspaceChanged) {
         </form>
       </div>
     </div>
+    
+    <!-- 删除确认弹窗 -->
+    <Teleport to="body">
+      <Transition name="modal">
+        <div v-if="showDeleteDialog" class="delete-dialog-overlay" @click.self="cancelDelete">
+          <div class="delete-dialog">
+            <div class="dialog-icon">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6h14M10 11v6M14 11v6"/>
+              </svg>
+            </div>
+            <h3 class="dialog-title">确认删除</h3>
+            <p class="dialog-message">
+              确定要删除需求 <strong>"{{ deleteTarget?.title }}"</strong> 吗？
+              <br>
+              <span class="warning-text">此操作无法撤销</span>
+            </p>
+            <div class="dialog-actions">
+              <button class="dialog-btn cancel-btn" @click="cancelDelete">
+                取消
+              </button>
+              <button class="dialog-btn delete-confirm-btn" @click="confirmDelete">
+                删除
+              </button>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
   </div>
 </template>
 
@@ -722,5 +767,132 @@ if (window.api?.onWorkspaceChanged) {
 .dark .link-btn:hover {
   background: rgba(74, 144, 226, 0.1);
   color: #5ba0f2;
+}
+
+/* 删除确认弹窗样式 */
+.delete-dialog-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  backdrop-filter: blur(2px);
+}
+
+.delete-dialog {
+  background: #252526;
+  border: 1px solid #3e3e42;
+  border-radius: 12px;
+  padding: 32px;
+  max-width: 420px;
+  width: 90%;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  text-align: center;
+}
+
+.dialog-icon {
+  margin-bottom: 20px;
+  color: #f44336;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dialog-icon svg {
+  width: 48px;
+  height: 48px;
+}
+
+.dialog-title {
+  margin: 0 0 16px;
+  font-size: 20px;
+  font-weight: 600;
+  color: #cccccc;
+}
+
+.dialog-message {
+  margin: 0 0 28px;
+  font-size: 14px;
+  color: #969696;
+  line-height: 1.6;
+}
+
+.dialog-message strong {
+  color: #d4d4d4;
+  font-weight: 500;
+}
+
+.warning-text {
+  display: inline-block;
+  margin-top: 8px;
+  font-size: 12px;
+  color: #f9c74f;
+  font-style: italic;
+}
+
+.dialog-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.dialog-btn {
+  padding: 10px 24px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  min-width: 100px;
+}
+
+.cancel-btn {
+  background: #3e3e42;
+  color: #cccccc;
+}
+
+.cancel-btn:hover {
+  background: #4e4e52;
+}
+
+.delete-confirm-btn {
+  background: #f44336;
+  color: white;
+}
+
+.delete-confirm-btn:hover {
+  background: #da190b;
+}
+
+/* 模态框过渡动画 */
+.modal-enter-active,
+.modal-leave-active {
+  transition: opacity 0.25s ease;
+}
+
+.modal-enter-from,
+.modal-leave-to {
+  opacity: 0;
+}
+
+.modal-enter-active .delete-dialog,
+.modal-leave-active .delete-dialog {
+  transition: transform 0.25s ease, opacity 0.25s ease;
+}
+
+.modal-enter-from .delete-dialog {
+  transform: scale(0.9);
+  opacity: 0;
+}
+
+.modal-leave-to .delete-dialog {
+  transform: scale(0.9);
+  opacity: 0;
 }
 </style>

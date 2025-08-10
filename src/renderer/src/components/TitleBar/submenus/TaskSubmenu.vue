@@ -5,16 +5,6 @@
       <span>新建任务清单</span>
       <span class="menu-shortcut">Ctrl+T</span>
     </div>
-    <div class="menu-item" @click="handleAction('update')">
-      <el-icon><Edit /></el-icon>
-      <span>更新任务清单</span>
-      <span class="menu-shortcut">Ctrl+Shift+T</span>
-    </div>
-    <div class="menu-item" @click="handleAction('execute')">
-      <el-icon><VideoPlay /></el-icon>
-      <span>执行任务清单</span>
-      <span class="menu-shortcut">Ctrl+E</span>
-    </div>
     <div class="menu-divider"></div>
     <div class="menu-item" @click="handleAction('list')">
       <el-icon><Document /></el-icon>
@@ -25,7 +15,7 @@
 </template>
 
 <script setup lang="ts">
-import { DocumentAdd, Edit, VideoPlay, Document } from '@element-plus/icons-vue'
+import { DocumentAdd, Document } from '@element-plus/icons-vue'
 
 const emit = defineEmits<{
   (e: 'action', type: string, action: string): void

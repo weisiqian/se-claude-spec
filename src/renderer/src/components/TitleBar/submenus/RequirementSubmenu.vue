@@ -5,11 +5,6 @@
       <span>新建需求文档</span>
       <span class="menu-shortcut">Ctrl+N</span>
     </div>
-    <div class="menu-item" @click="handleAction('update')">
-      <el-icon><Edit /></el-icon>
-      <span>更新需求文档</span>
-      <span class="menu-shortcut">Ctrl+U</span>
-    </div>
     <div class="menu-divider"></div>
     <div class="menu-item" @click="handleAction('list')">
       <el-icon><Document /></el-icon>
@@ -20,7 +15,7 @@
 </template>
 
 <script setup lang="ts">
-import { DocumentAdd, Edit, Document } from '@element-plus/icons-vue'
+import { DocumentAdd, Document } from '@element-plus/icons-vue'
 
 const emit = defineEmits<{
   (e: 'action', type: string, action: string): void

@@ -118,12 +118,8 @@ const showAbout = () => {
 useKeyboardShortcuts({
   selectDirectory,
   createRequirement: () => handleMenuAction('requirement', 'create'),
-  updateRequirement: () => handleMenuAction('requirement', 'update'),
   createDesign: () => handleMenuAction('design', 'create'),
-  updateDesign: () => handleMenuAction('design', 'update'),
   createTask: () => handleMenuAction('task', 'create'),
-  updateTask: () => handleMenuAction('task', 'update'),
-  executeTask: () => handleMenuAction('task', 'execute'),
   toggleTheme: handleThemeToggle,
   showAbout
 })

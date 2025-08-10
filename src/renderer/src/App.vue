@@ -30,9 +30,31 @@ const selectedRequirement = ref<any>(null)
 // 提供主题状态给子组件
 provide('isDark', isDark)
 
-const handleMenuAction = (type: string) => {
-  activePanel.value = type as 'requirement' | 'design' | 'task'
-  showForm.value = false
+const handleMenuAction = (type: string, action: string) => {
+  if (type === 'requirement' && action === 'create') {
+    // 点击新建需求文档，打开需求创建器
+    activePanel.value = 'requirement'
+    showRequirementCreator.value = true
+    showRequirementStatus.value = false
+    showRequirementEditor.value = false
+    showForm.value = false
+  } else if (action === 'list') {
+    // 点击列表项，显示对应的侧边栏
+    activePanel.value = type as 'requirement' | 'design' | 'task'
+    showForm.value = false
+    showRequirementCreator.value = false
+    showRequirementStatus.value = false
+    showRequirementEditor.value = false
+  } else {
+    // 其他操作（设计和任务的创建）
+    formType.value = type as 'requirement' | 'design' | 'task'
+    formAction.value = action as 'create' | 'update' | 'execute'
+    showForm.value = true
+    activePanel.value = ''
+    showRequirementCreator.value = false
+    showRequirementStatus.value = false
+    showRequirementEditor.value = false
+  }
 }
 
 const handleDirectorySelected = (path: string) => {

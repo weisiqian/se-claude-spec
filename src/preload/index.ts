@@ -41,7 +41,8 @@ const api = {
     jsonSchema: string
     createdAt: string
     updatedAt?: string
-  }) => ipcRenderer.invoke('update-requirement', data)
+  }) => ipcRenderer.invoke('update-requirement', data),
+  deleteRequirement: (iterationId: string) => ipcRenderer.invoke('delete-requirement', iterationId)
 }
 
 // Use `contextBridge` APIs to expose Electron APIs to

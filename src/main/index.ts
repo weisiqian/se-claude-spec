@@ -302,6 +302,64 @@ app.whenReady().then(() => {
     }
   })
   
+  // 删除需求
+  ipcMain.handle('delete-requirement', async (_, iterationId: string) => {
+    try {
+      const workspace = getCurrentWorkspace()
+      if (!workspace) {
+        return { success: false, error: '未找到工作空间' }
+      }
+      
+      const deletedFiles: string[] = []
+      
+      // 1. 删除 .se-claude 目录下的文件
+      const seClaudeDir = path.join(workspace, '.se-claude')
+      const jsonFile = path.join(seClaudeDir, `${iterationId}.json`)
+      
+      if (fs.existsSync(jsonFile)) {
+        fs.unlinkSync(jsonFile)
+        deletedFiles.push(jsonFile)
+        console.log(`删除文件: ${jsonFile}`)
+      }
+      
+      // 2. 删除 .claude/commands/{iterationId} 目录
+      const claudeDir = path.join(workspace, '.claude')
+      const commandsDir = path.join(claudeDir, 'commands')
+      const claudeIterationDir = path.join(commandsDir, iterationId)
+      
+      if (fs.existsSync(claudeIterationDir)) {
+        // 递归删除目录
+        fs.rmSync(claudeIterationDir, { recursive: true, force: true })
+        deletedFiles.push(claudeIterationDir)
+        console.log(`删除目录: ${claudeIterationDir}`)
+      }
+      
+      // 3. 删除 .design 目录下的相关文件和目录
+      const designDir = path.join(workspace, '.design')
+      const designIterationDir = path.join(designDir, iterationId)
+      
+      if (fs.existsSync(designIterationDir)) {
+        // 递归删除目录
+        fs.rmSync(designIterationDir, { recursive: true, force: true })
+        deletedFiles.push(designIterationDir)
+        console.log(`删除目录: ${designIterationDir}`)
+      }
+      
+      console.log(`删除需求 ${iterationId} 成功，共删除 ${deletedFiles.length} 个文件/目录`)
+      
+      return { 
+        success: true,
+        deletedFiles
+      }
+    } catch (error) {
+      console.error('删除需求失败:', error)
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : '删除失败' 
+      }
+    }
+  })
+  
   // 保存需求
   ipcMain.handle('save-requirement', async (_, data: {
     iterationId: string

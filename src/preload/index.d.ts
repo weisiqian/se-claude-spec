@@ -62,6 +62,11 @@ declare global {
         success: boolean
         error?: string
       }>
+      deleteRequirement: (iterationId: string) => Promise<{
+        success: boolean
+        error?: string
+        deletedFiles?: string[]
+      }>
     }
   }
 }

@@ -178,12 +178,34 @@ const handleDelete = (item: DataItem) => {
   showDeleteDialog.value = true
 }
 
-const confirmDelete = () => {
+const confirmDelete = async () => {
   if (deleteTarget.value) {
-    const index = items.value.findIndex(i => i.id === deleteTarget.value!.id)
-    if (index > -1) {
-      items.value.splice(index, 1)
-      saveItems()
+    // 如果是需求类型，调用API删除相关文件
+    if (props.type === 'requirement' && deleteTarget.value.iterationId) {
+      try {
+        const result = await window.api.deleteRequirement(deleteTarget.value.iterationId)
+        if (result.success) {
+          console.log(`成功删除需求 ${deleteTarget.value.iterationId}，删除了 ${result.deletedFiles?.length || 0} 个文件`)
+          // 从列表中移除
+          const index = items.value.findIndex(i => i.id === deleteTarget.value!.id)
+          if (index > -1) {
+            items.value.splice(index, 1)
+          }
+        } else {
+          console.error('删除需求失败:', result.error)
+          alert(`删除需求失败: ${result.error}`)
+        }
+      } catch (error) {
+        console.error('删除需求出错:', error)
+        alert('删除需求时发生错误')
+      }
+    } else {
+      // 其他类型仍从localStorage删除
+      const index = items.value.findIndex(i => i.id === deleteTarget.value!.id)
+      if (index > -1) {
+        items.value.splice(index, 1)
+        saveItems()
+      }
     }
   }
   cancelDelete()
@@ -440,6 +462,10 @@ if (window.api?.onWorkspaceChanged) {
             <h3 class="dialog-title">确认删除</h3>
             <p class="dialog-message">
               确定要删除需求 <strong>"{{ deleteTarget?.title }}"</strong> 吗？
+              <br>
+              <span v-if="type === 'requirement'" class="warning-text">
+                将同时删除 .claude、.design、.se-claude 目录下的相关文件
+              </span>
               <br>
               <span class="warning-text">此操作无法撤销</span>
             </p>

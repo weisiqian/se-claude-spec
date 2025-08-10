@@ -139,10 +139,7 @@ const handleExecuteCommand = async () => {
       })
     }
     
-    // 短暂延迟后关闭创建器，让用户看到终端执行
-    setTimeout(() => {
-      emit('close')
-    }, 500)
+    // 不再自动关闭创建器，让用户停留在当前页面查看执行结果
   } finally {
     isExecuting.value = false
   }

@@ -1,4 +1,4 @@
-import { ipcMain } from 'electron'
+import { ipcMain, Menu, MenuItem } from 'electron'
 import { spawn, IPty } from 'node-pty'
 import os from 'os'
 import { exec } from 'child_process'
@@ -54,6 +54,43 @@ export class TerminalManager {
 
     ipcMain.handle('terminal:destroy', (_, id: string) => {
       this.destroyTerminal(id)
+    })
+
+    ipcMain.handle('terminal:show-context-menu', (event, menuItems: any[]) => {
+      const menu = new Menu()
+      
+      menuItems.forEach((item, index) => {
+        if (item.type === 'separator') {
+          menu.append(new MenuItem({ type: 'separator' }))
+        } else {
+          const menuItem: Electron.MenuItemConstructorOptions = {
+            label: item.label,
+            enabled: item.enabled !== false,
+            click: () => {
+              if (this.mainWindow) {
+                this.mainWindow.webContents.send('terminal:context-menu-click', item.action || item.label)
+              }
+            }
+          }
+          
+          // 添加快捷键显示
+          if (item.accelerator) {
+            menuItem.accelerator = item.accelerator
+          }
+          
+          // 添加图标（如果支持）
+          if (item.icon) {
+            // Electron 支持的图标类型
+            menuItem.role = item.icon as any
+          }
+          
+          menu.append(new MenuItem(menuItem))
+        }
+      })
+      
+      if (this.mainWindow) {
+        menu.popup({ window: this.mainWindow })
+      }
     })
   }
 

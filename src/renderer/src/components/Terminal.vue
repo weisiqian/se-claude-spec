@@ -1,14 +1,25 @@
 <template>
   <div class="terminal-container" :class="{ 'dark': isDark }" ref="terminalContainer">
     <div class="terminal-content" ref="terminalContent"></div>
+    
+    <!-- 自定义右键菜单 -->
+    <ContextMenu
+      v-if="contextMenu.visible"
+      :items="contextMenu.items"
+      :visible="contextMenu.visible"
+      :position="contextMenu.position"
+      @select="handleMenuAction"
+      @close="contextMenu.visible = false"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, nextTick, watch, defineExpose } from 'vue'
+import { ref, onMounted, onBeforeUnmount, nextTick, watch, defineExpose, reactive } from 'vue'
 import { Terminal } from 'xterm'
 import { FitAddon } from 'xterm-addon-fit'
 import { WebLinksAddon } from 'xterm-addon-web-links'
+import ContextMenu from './ContextMenu.vue'
 import 'xterm/css/xterm.css'
 
 const props = defineProps<{
@@ -31,6 +42,14 @@ const terminals = ref<TerminalInstance[]>([])
 const activeTerminalId = ref<string>('')
 let currentTerminal: Terminal | null = null
 let resizeObserver: ResizeObserver | null = null
+
+// 右键菜单状态
+const contextMenu = reactive({
+  visible: false,
+  position: { x: 0, y: 0 },
+  items: [] as any[],
+  terminalId: ''
+})
 
 // Windows Terminal 风格主题
 const wtTheme = {
@@ -72,7 +91,8 @@ const createTerminal = async (id: string, type: string = 'bash') => {
     fontWeightBold: 600,
     letterSpacing: 0,
     lineHeight: 1.2,
-    allowProposedApi: true  // 允许使用实验性 API
+    allowProposedApi: true,  // 允许使用实验性 API
+    rightClickSelectsWord: true  // 右键点击选中单词
   })
 
   const fitAddon = new FitAddon()
@@ -80,6 +100,174 @@ const createTerminal = async (id: string, type: string = 'bash') => {
   
   const webLinksAddon = new WebLinksAddon()
   terminal.loadAddon(webLinksAddon)
+
+  // 添加复制粘贴功能
+  terminal.attachCustomKeyEventHandler((event: KeyboardEvent) => {
+    // 只处理 keydown 事件，忽略 keyup 和其他事件
+    if (event.type !== 'keydown') {
+      return true
+    }
+    
+    // Ctrl+Shift+C 复制
+    if (event.ctrlKey && event.shiftKey && event.key === 'C') {
+      event.preventDefault()
+      event.stopPropagation()
+      if (terminal.hasSelection()) {
+        navigator.clipboard.writeText(terminal.getSelection())
+        // 可选：清除选择以提供视觉反馈
+        terminal.clearSelection()
+      }
+      return false
+    }
+    // Ctrl+Shift+V 粘贴
+    if (event.ctrlKey && event.shiftKey && event.key === 'V') {
+      event.preventDefault()
+      event.stopPropagation()
+      navigator.clipboard.readText().then(text => {
+        if (text) {
+          // 直接写入终端，而不是使用 paste 方法
+          window.electron.ipcRenderer.invoke('terminal:write', id, text)
+        }
+      })
+      return false
+    }
+    // Ctrl+Shift+A 选择全部
+    if (event.ctrlKey && event.shiftKey && event.key === 'A') {
+      event.preventDefault()
+      event.stopPropagation()
+      terminal.selectAll()
+      return false
+    }
+    // Ctrl+C 复制（当有选中文本时，否则发送中断信号）
+    if (event.ctrlKey && event.key === 'c' && !event.shiftKey) {
+      if (terminal.hasSelection()) {
+        event.preventDefault()
+        event.stopPropagation()
+        navigator.clipboard.writeText(terminal.getSelection())
+        terminal.clearSelection()
+        return false
+      }
+      // 没有选中文本时，让终端处理 Ctrl+C（发送中断信号）
+      return true
+    }
+    // Ctrl+V 粘贴
+    if (event.ctrlKey && event.key === 'v' && !event.shiftKey) {
+      event.preventDefault()
+      event.stopPropagation()
+      navigator.clipboard.readText().then(text => {
+        if (text) {
+          // 直接写入终端，而不是使用 paste 方法
+          window.electron.ipcRenderer.invoke('terminal:write', id, text)
+        }
+      })
+      return false
+    }
+    // Ctrl+L 清空终端
+    if (event.ctrlKey && event.key === 'l' && !event.shiftKey) {
+      event.preventDefault()
+      event.stopPropagation()
+      // 清空终端并清除当前行输入
+      terminal.clear()
+      // 发送 Ctrl+C 清除当前输入，然后发送 clear 命令
+      window.electron.ipcRenderer.invoke('terminal:write', id, '\x03')
+      setTimeout(() => {
+        window.electron.ipcRenderer.invoke('terminal:write', id, 'clear\r')
+      }, 50)
+      return false
+    }
+    return true
+  })
+
+  // 添加右键菜单 - 延迟一下确保terminal.element已经存在
+  setTimeout(() => {
+    if (terminal.element) {
+      terminal.element.addEventListener('contextmenu', (e) => {
+        e.preventDefault()
+        e.stopPropagation()
+        
+        // 创建自定义右键菜单
+        const hasSelection = terminal.hasSelection()
+        
+        // 构建菜单项
+        const menuItems = []
+        
+        // 复制/粘贴组
+        if (hasSelection) {
+          menuItems.push({
+            label: '复制',
+            action: 'copy',
+            accelerator: 'Ctrl+C',
+            enabled: true,
+            highlight: true
+          })
+        }
+        
+        menuItems.push({
+          label: '粘贴',
+          action: 'paste',
+          accelerator: 'Ctrl+V',
+          enabled: true
+        })
+        
+        // 分隔线
+        if (hasSelection) {
+          menuItems.push({ type: 'separator' })
+        }
+        
+        // 选择组
+        menuItems.push({
+          label: '全选',
+          action: 'selectAll',
+          accelerator: 'Ctrl+Shift+A',
+          enabled: true
+        })
+        
+        if (hasSelection) {
+          menuItems.push({
+            label: '清除选择',
+            action: 'clearSelection',
+            enabled: true
+          })
+        }
+        
+        // 分隔线
+        menuItems.push({ type: 'separator' })
+        
+        // 终端操作组
+        menuItems.push({
+          label: '清空',
+          action: 'clear',
+          accelerator: 'Ctrl+L',
+          enabled: true
+        })
+        
+        // 显示自定义菜单
+        contextMenu.items = menuItems
+        contextMenu.terminalId = id
+        contextMenu.position = { x: e.clientX, y: e.clientY }
+        
+        // 调整位置避免超出屏幕
+        nextTick(() => {
+          const menuEl = document.querySelector('.context-menu') as HTMLElement
+          if (menuEl) {
+            const rect = menuEl.getBoundingClientRect()
+            const windowWidth = window.innerWidth
+            const windowHeight = window.innerHeight
+            
+            if (contextMenu.position.x + rect.width > windowWidth) {
+              contextMenu.position.x = windowWidth - rect.width - 5
+            }
+            
+            if (contextMenu.position.y + rect.height > windowHeight) {
+              contextMenu.position.y = windowHeight - rect.height - 5
+            }
+          }
+        })
+        
+        contextMenu.visible = true
+      })
+    }
+  }, 100)
 
   // 获取当前用户名
   const username = await window.electron.ipcRenderer.invoke('terminal:get-username')
@@ -224,6 +412,51 @@ onBeforeUnmount(() => {
   
   terminals.value = []
 })
+
+// 处理菜单操作
+const handleMenuAction = (action: string) => {
+  const terminalId = contextMenu.terminalId
+  const termInstance = terminals.value.find(t => t.id === terminalId)
+  
+  if (!termInstance) return
+  
+  const terminal = termInstance.terminal
+  
+  switch (action) {
+    case 'copy':
+      if (terminal.hasSelection()) {
+        navigator.clipboard.writeText(terminal.getSelection())
+        terminal.clearSelection()
+      }
+      break
+    case 'paste':
+      navigator.clipboard.readText().then(text => {
+        if (text) {
+          // 直接写入终端
+          window.electron.ipcRenderer.invoke('terminal:write', terminalId, text)
+        }
+      })
+      break
+    case 'selectAll':
+      terminal.selectAll()
+      break
+    case 'clearSelection':
+      terminal.clearSelection()
+      break
+    case 'clear':
+      // 清空终端并清除当前行输入
+      terminal.clear()
+      // 发送 Ctrl+C 清除当前输入，然后发送 clear 命令
+      window.electron.ipcRenderer.invoke('terminal:write', terminalId, '\x03')
+      setTimeout(() => {
+        window.electron.ipcRenderer.invoke('terminal:write', terminalId, 'clear\r')
+      }, 50)
+      break
+  }
+  
+  // 关闭菜单
+  contextMenu.visible = false
+}
 
 // 切换当前终端的工作目录
 const changeDirectory = async (path: string) => {

@@ -10,7 +10,8 @@ const props = defineProps<{
 const emit = defineEmits<{
   close: []
   back: []
-  submit: [data: { userRequirement: string; prompt: string; jsonSchema: string }]
+  submit: [data: { iterationId: string; userRequirement: string; prompt: string; jsonSchema: string }]
+  executeCommand: [command: string]
 }>()
 
 const isDark = inject('isDark', ref(false))
@@ -18,12 +19,15 @@ const isDark = inject('isDark', ref(false))
 // 默认提示词
 const DEFAULT_PROMPT = defaultPromptContent
 
+const iterationId = ref('')
 const userRequirement = ref('')
 // 初始化时直接设置默认提示词，避免闪烁
 const prompt = ref(DEFAULT_PROMPT)
 const jsonSchema = ref('')
 const isGenerating = ref(false)
 const isExecuting = ref(false)
+const generatedCommand = ref('')
+const showCommandResult = ref(false)
 
 // 计算属性：判断提示词是否与默认值不同
 const isPromptModified = computed(() => {
@@ -32,8 +36,25 @@ const isPromptModified = computed(() => {
 
 // 计算属性：判断是否有未保存的内容
 const hasUnsavedContent = computed(() => {
-  return userRequirement.value || (prompt.value && prompt.value !== DEFAULT_PROMPT) || jsonSchema.value
+  return iterationId.value || userRequirement.value || (prompt.value && prompt.value !== DEFAULT_PROMPT) || jsonSchema.value
 })
+
+// 验证迭代ID格式
+const validateIterationId = (value: string) => {
+  return /^[a-zA-Z0-9_]+$/.test(value)
+}
+
+// 处理迭代ID输入
+const handleIterationIdInput = (event: Event) => {
+  const input = event.target as HTMLInputElement
+  const value = input.value
+  // 只允许字母数字下划线
+  const filtered = value.replace(/[^a-zA-Z0-9_]/g, '')
+  if (filtered !== value) {
+    iterationId.value = filtered
+    input.value = filtered
+  }
+}
 
 const handleResetPrompt = () => {
   if (prompt.value !== DEFAULT_PROMPT) {
@@ -45,6 +66,16 @@ const handleResetPrompt = () => {
 }
 
 const handleGenerateCommand = async () => {
+  if (!iterationId.value.trim()) {
+    alert('请输入迭代ID')
+    return
+  }
+  
+  if (!validateIterationId(iterationId.value)) {
+    alert('迭代ID只能包含字母、数字和下划线')
+    return
+  }
+  
   if (!userRequirement.value.trim()) {
     alert('请输入用户需求')
     return
@@ -52,72 +83,81 @@ const handleGenerateCommand = async () => {
   
   isGenerating.value = true
   try {
-    // TODO: 调用 AI API 生成命令
-    console.log('生成命令:', {
+    // 保存表单数据到 .se-claude 目录
+    const formData = {
+      iterationId: iterationId.value,
       userRequirement: userRequirement.value,
       prompt: prompt.value,
-      jsonSchema: jsonSchema.value
-    })
-    
-    // 模拟生成过稌
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    
-    // 生成示例 JSON Schema
-    if (!jsonSchema.value) {
-      jsonSchema.value = JSON.stringify({
-        type: 'object',
-        properties: {
-          name: { type: 'string' },
-          description: { type: 'string' }
-        }
-      }, null, 2)
+      jsonSchema: jsonSchema.value,
+      createdAt: new Date().toISOString()
     }
+    
+    // 使用 window.api 调用主进程方法
+    const result = await window.api.saveRequirement(formData)
+    
+    if (result.success) {
+      // 生成 claude 命令
+      generatedCommand.value = `claude "/${iterationId.value}:requirement"`
+      showCommandResult.value = true
+    } else {
+      alert('保存失败: ' + result.error)
+    }
+  } catch (error) {
+    console.error('生成命令失败:', error)
+    alert('生成命令失败')
   } finally {
     isGenerating.value = false
   }
 }
 
 const handleExecuteCommand = async () => {
-  if (!userRequirement.value.trim()) {
-    alert('请输入用户需求')
-    return
-  }
-  
-  if (!prompt.value.trim()) {
-    alert('请先生成或输入提示词')
+  if (!generatedCommand.value) {
+    alert('请先生成命令')
     return
   }
   
   isExecuting.value = true
   try {
-    // 触发提交事件
-    emit('submit', {
-      userRequirement: userRequirement.value,
-      prompt: prompt.value,
-      jsonSchema: jsonSchema.value
-    })
+    // 触发执行命令事件，在终端中执行生成的命令
+    emit('executeCommand', generatedCommand.value)
     
-    // TODO: 执行命令逻辑
-    console.log('执行命令:', {
-      userRequirement: userRequirement.value,
-      prompt: prompt.value,
-      jsonSchema: jsonSchema.value
-    })
+    // 可选：同时触发提交事件保存数据
+    if (iterationId.value && userRequirement.value) {
+      emit('submit', {
+        iterationId: iterationId.value,
+        userRequirement: userRequirement.value,
+        prompt: prompt.value,
+        jsonSchema: jsonSchema.value
+      })
+    }
     
-    // 模拟执行过程
-    await new Promise(resolve => setTimeout(resolve, 1500))
-    
-    // 清空表单
-    handleReset()
+    // 短暂延迟后关闭创建器，让用户看到终端执行
+    setTimeout(() => {
+      emit('close')
+    }, 500)
   } finally {
     isExecuting.value = false
   }
 }
 
 const handleReset = () => {
+  iterationId.value = ''
   userRequirement.value = ''
   prompt.value = DEFAULT_PROMPT
   jsonSchema.value = ''
+  generatedCommand.value = ''
+  showCommandResult.value = false
+}
+
+const copySuccessMessage = ref(false)
+const copyCommand = async () => {
+  if (generatedCommand.value) {
+    await navigator.clipboard.writeText(generatedCommand.value)
+    copySuccessMessage.value = true
+    setTimeout(() => {
+      copySuccessMessage.value = false
+    }, 2000)
+  }
 }
 
 // 添加一个状态来控制是否显示未保存提示
@@ -174,6 +214,23 @@ const cancelLeave = () => {
     
     <div class="creator-content">
       <div class="form-section">
+        <div class="form-group">
+          <label class="form-label">
+            迭代ID
+            <span class="required">*</span>
+            <span class="input-hint">仅支持字母、数字、下划线</span>
+          </label>
+          <input
+            v-model="iterationId"
+            type="text"
+            class="form-input"
+            placeholder="请输入迭代ID（如：iter_001、feature_login）..."
+            @input="handleIterationIdInput"
+            :disabled="isGenerating || isExecuting"
+            pattern="[a-zA-Z0-9_]+"
+          />
+        </div>
+        
         <div class="form-group">
           <label class="form-label">
             用户需求
@@ -242,11 +299,33 @@ const cancelLeave = () => {
         </div>
       </div>
       
+      <!-- 命令生成结果 -->
+      <transition name="fade">
+        <div v-if="showCommandResult" class="command-result">
+          <div class="command-result-header">
+            <span class="result-label">生成的命令：</span>
+            <button class="copy-btn" @click="copyCommand" title="复制命令">
+              <svg v-if="!copySuccessMessage" width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+                <path d="M10.5 1h-7A1.5 1.5 0 0 0 2 2.5v10A1.5 1.5 0 0 0 3.5 14h7a1.5 1.5 0 0 0 1.5-1.5v-10A1.5 1.5 0 0 0 10.5 1zM3.5 2h7a.5.5 0 0 1 .5.5v10a.5.5 0 0 1-.5.5h-7a.5.5 0 0 1-.5-.5v-10a.5.5 0 0 1 .5-.5z"/>
+                <path d="M13.5 4H14a1.5 1.5 0 0 1 1.5 1.5v10A1.5 1.5 0 0 1 14 17H6.5A1.5 1.5 0 0 1 5 15.5V15h1v.5a.5.5 0 0 0 .5.5H14a.5.5 0 0 0 .5-.5v-10a.5.5 0 0 0-.5-.5h-.5V4z"/>
+              </svg>
+              <svg v-else width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+                <path d="M13.78 4.22a.75.75 0 010 1.06l-7.25 7.25a.75.75 0 01-1.06 0L2.22 9.28a.75.75 0 011.06-1.06L6 10.94l6.72-6.72a.75.75 0 011.06 0z"/>
+              </svg>
+              {{ copySuccessMessage ? '已复制' : '复制' }}
+            </button>
+          </div>
+          <div class="command-display">
+            <code>{{ generatedCommand }}</code>
+          </div>
+        </div>
+      </transition>
+      
       <div class="action-buttons">
         <button 
           class="action-btn generate-btn"
           @click="handleGenerateCommand"
-          :disabled="!userRequirement.trim() || isGenerating || isExecuting"
+          :disabled="!iterationId.trim() || !userRequirement.trim() || isGenerating || isExecuting"
         >
           <span class="btn-icon">⚡</span>
           {{ isGenerating ? '生成中...' : '生成命令' }}
@@ -255,7 +334,7 @@ const cancelLeave = () => {
         <button 
           class="action-btn execute-btn"
           @click="handleExecuteCommand"
-          :disabled="!userRequirement.trim() || !prompt.trim() || isExecuting"
+          :disabled="!generatedCommand || isExecuting"
         >
           <span class="btn-icon">▶</span>
           {{ isExecuting ? '执行中...' : '执行命令' }}
@@ -419,6 +498,12 @@ const cancelLeave = () => {
   font-size: 12px;
 }
 
+.input-hint {
+  color: #767676;
+  font-size: 12px;
+  margin-left: auto;
+}
+
 .auto-generate-btn {
   margin-left: auto;
   padding: 4px 10px;
@@ -468,6 +553,91 @@ const cancelLeave = () => {
 
 .form-textarea::placeholder {
   color: #6e6e6e;
+}
+
+.form-input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #3e3e42;
+  background: #1e1e1e;
+  color: #d4d4d4;
+  font-size: 14px;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  border-radius: 4px;
+  outline: none;
+  transition: all 0.15s ease;
+}
+
+.form-input:focus {
+  border-color: #007acc;
+  background: #1a1a1a;
+}
+
+.form-input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.form-input::placeholder {
+  color: #6e6e6e;
+}
+
+.command-result {
+  margin-top: 16px;
+  padding: 12px;
+  background: #1a1a1a;
+  border: 1px solid #3e3e42;
+  border-radius: 4px;
+}
+
+.command-result-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.result-label {
+  font-size: 13px;
+  color: #969696;
+  font-weight: 500;
+}
+
+.copy-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background: #0e639c;
+  border: none;
+  color: white;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.copy-btn:hover {
+  background: #1177bb;
+}
+
+.copy-btn svg {
+  width: 12px;
+  height: 12px;
+}
+
+.command-display {
+  padding: 8px 12px;
+  background: #0e0e0e;
+  border: 1px solid #2d2d30;
+  border-radius: 3px;
+  font-family: 'Consolas', 'Monaco', monospace;
+}
+
+.command-display code {
+  color: #4ec9b0;
+  font-size: 13px;
 }
 
 .action-buttons {

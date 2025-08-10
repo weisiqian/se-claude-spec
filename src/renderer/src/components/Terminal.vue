@@ -234,6 +234,22 @@ const changeDirectory = async (path: string) => {
   }
 }
 
+// 在当前终端执行命令
+const executeCommand = async (command: string) => {
+  if (!currentTerminal || !activeTerminalId.value) {
+    // 如果没有活动终端，创建一个新的
+    await createNewTerminal()
+  }
+  
+  if (currentTerminal && activeTerminalId.value) {
+    // 确保终端获得焦点
+    currentTerminal.focus()
+    // 发送命令到终端（添加回车符执行）
+    const fullCommand = `${command}\r`
+    await window.electron.ipcRenderer.invoke('terminal:write', activeTerminalId.value, fullCommand)
+  }
+}
+
 // 暴露方法给父组件
 defineExpose({
   createNewTerminal,
@@ -241,6 +257,7 @@ defineExpose({
   closeTerminal,
   switchTerminal,
   changeDirectory,
+  executeCommand,
   terminals,
   activeTerminalId
 })

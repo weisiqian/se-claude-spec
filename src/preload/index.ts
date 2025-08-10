@@ -23,7 +23,14 @@ const api = {
   switchWorkspace: (dirPath: string) => ipcRenderer.invoke('switch-workspace', dirPath),
   onWorkspaceChanged: (callback: (workspace: string) => void) => {
     ipcRenderer.on('workspace-changed', (_, workspace) => callback(workspace))
-  }
+  },
+  saveRequirement: (data: {
+    iterationId: string
+    userRequirement: string
+    prompt: string
+    jsonSchema: string
+    createdAt: string
+  }) => ipcRenderer.invoke('save-requirement', data)
 }
 
 // Use `contextBridge` APIs to expose Electron APIs to

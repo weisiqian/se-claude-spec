@@ -1,6 +1,8 @@
 import { app, shell, BrowserWindow, ipcMain, session, dialog } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
+import * as fs from 'fs'
+import * as path from 'path'
 import icon from '../../resources/icon.png?asset'
 import { TerminalManager } from './terminal-pty'
 import { 
@@ -182,6 +184,65 @@ app.whenReady().then(() => {
     setCurrentWorkspace(dirPath)
     mainWindow?.webContents.send('workspace-changed', dirPath)
     return dirPath
+  })
+  
+  // 保存需求
+  ipcMain.handle('save-requirement', async (_, data: {
+    iterationId: string
+    userRequirement: string
+    prompt: string
+    jsonSchema: string
+    createdAt: string
+  }) => {
+    try {
+      const workspace = getCurrentWorkspace()
+      if (!workspace) {
+        return { success: false, error: '未设置工作空间' }
+      }
+      
+      // 创建 .se-claude 目录
+      const seClaudeDir = path.join(workspace, '.se-claude')
+      if (!fs.existsSync(seClaudeDir)) {
+        fs.mkdirSync(seClaudeDir, { recursive: true })
+      }
+      
+      // 创建 .claude/commands/迭代ID 目录
+      const claudeDir = path.join(workspace, '.claude')
+      const commandsDir = path.join(claudeDir, 'commands')
+      const iterationDir = path.join(commandsDir, data.iterationId)
+      
+      if (!fs.existsSync(iterationDir)) {
+        fs.mkdirSync(iterationDir, { recursive: true })
+      }
+      
+      // 保存表单数据到 .se-claude 目录
+      const formDataPath = path.join(seClaudeDir, `${data.iterationId}.json`)
+      fs.writeFileSync(formDataPath, JSON.stringify(data, null, 2), 'utf-8')
+      
+      // 生成最终的提示词内容
+      let finalPrompt = data.prompt
+      
+      // 替换占位符
+      finalPrompt = finalPrompt.replace(/{{USER_REQUIREMENT}}/g, data.userRequirement)
+      finalPrompt = finalPrompt.replace(/{{JSON_SCHEMA}}/g, data.jsonSchema || '')
+      
+      // 保存提示词到 .claude/commands/迭代ID/requirement.md
+      const promptPath = path.join(iterationDir, 'requirement.md')
+      fs.writeFileSync(promptPath, finalPrompt, 'utf-8')
+      
+      return { 
+        success: true, 
+        commandName: data.iterationId,
+        formDataPath,
+        promptPath
+      }
+    } catch (error) {
+      console.error('保存需求失败:', error)
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : '保存失败' 
+      }
+    }
   })
 
   // 创建主窗口（默认最大化）

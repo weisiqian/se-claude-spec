@@ -25,7 +25,7 @@ const showRequirementCreator = ref(false)
 // 提供主题状态给子组件
 provide('isDark', isDark)
 
-const handleMenuAction = (type: string, action: string) => {
+const handleMenuAction = (type: string) => {
   activePanel.value = type as 'requirement' | 'design' | 'task'
   showForm.value = false
 }
@@ -95,6 +95,13 @@ const handleRequirementSubmit = (data: any) => {
   console.log('新建需求提交:', data)
   // TODO: 处理需求提交逻辑
   showRequirementCreator.value = false
+}
+
+const handleExecuteCommand = async (command: string) => {
+  // 在终端中执行命令
+  if (terminalRef.value) {
+    await terminalRef.value.executeCommand(command)
+  }
 }
 
 onMounted(async () => {
@@ -177,6 +184,7 @@ onUnmounted(() => {
             @close="showRequirementCreator = false"
             @back="showRequirementCreator = false"
             @submit="handleRequirementSubmit"
+            @execute-command="handleExecuteCommand"
           />
           <SidePanel
             v-else

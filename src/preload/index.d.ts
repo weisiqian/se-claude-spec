@@ -22,6 +22,19 @@ declare global {
       getRecentDirectories: () => Promise<string[]>
       switchWorkspace: (dirPath: string) => Promise<string>
       onWorkspaceChanged: (callback: (workspace: string) => void) => void
+      saveRequirement: (data: {
+        iterationId: string
+        userRequirement: string
+        prompt: string
+        jsonSchema: string
+        createdAt: string
+      }) => Promise<{
+        success: boolean
+        error?: string
+        commandName?: string
+        formDataPath?: string
+        promptPath?: string
+      }>
     }
   }
 }

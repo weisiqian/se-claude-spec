@@ -9,6 +9,7 @@ import SidePanel from './components/SidePanel.vue'
 import SplitLayout from './components/SplitLayout.vue'
 import RequirementCreator from './components/RequirementCreator.vue'
 import RequirementStatus from './components/RequirementStatus.vue'
+import RequirementEditor from './components/RequirementEditor.vue'
 
 const projectPath = ref<string | null>(null)
 const showForm = ref(false)
@@ -23,6 +24,7 @@ const updateInterval = ref<NodeJS.Timeout | null>(null)
 const isMaximized = ref(false)
 const showRequirementCreator = ref(false)
 const showRequirementStatus = ref(false)
+const showRequirementEditor = ref(false)
 const selectedRequirement = ref<any>(null)
 
 // 提供主题状态给子组件
@@ -57,6 +59,7 @@ const handlePanelItemSelect = (item: any) => {
       // 如果是需求管理，显示新的需求创建器
       showRequirementCreator.value = true
       showRequirementStatus.value = false
+      showRequirementEditor.value = false
     } else {
       // 其他类型使用原有的表单页面
       formType.value = activePanel.value as 'requirement' | 'design' | 'task'
@@ -71,6 +74,7 @@ const handlePanelItemSelect = (item: any) => {
       selectedRequirement.value = item
       showRequirementStatus.value = true
       showRequirementCreator.value = false
+      showRequirementEditor.value = false
     } else {
       // 其他类型编辑
       formType.value = activePanel.value as 'requirement' | 'design' | 'task'
@@ -114,6 +118,22 @@ const handleExecuteCommand = async (command: string) => {
   if (terminalRef.value) {
     await terminalRef.value.executeCommand(command)
   }
+}
+
+const handleEditRequirement = (item: any) => {
+  // 编辑需求
+  selectedRequirement.value = item
+  showRequirementEditor.value = true
+  showRequirementCreator.value = false
+  showRequirementStatus.value = false
+}
+
+const handleSaveRequirement = (shouldClose = true) => {
+  // 根据参数决定是否关闭编辑器
+  if (shouldClose) {
+    showRequirementEditor.value = false
+  }
+  // 需求列表会自动刷新
 }
 
 onMounted(async () => {
@@ -205,12 +225,21 @@ onUnmounted(() => {
             @back="showRequirementStatus = false"
             @execute-command="handleExecuteCommand"
           />
+          <RequirementEditor
+            v-else-if="showRequirementEditor && activePanel === 'requirement' && selectedRequirement"
+            :requirement="selectedRequirement"
+            @close="showRequirementEditor = false"
+            @back="showRequirementEditor = false"
+            @save="handleSaveRequirement"
+            @execute-command="handleExecuteCommand"
+          />
           <SidePanel
             v-else
             :type="activePanel"
             :is-dark="isDark"
             @close="activePanel = ''"
             @item-select="handlePanelItemSelect"
+            @edit-requirement="handleEditRequirement"
           />
         </template>
         <template #terminal>

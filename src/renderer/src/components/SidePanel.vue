@@ -20,6 +20,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   close: []
   itemSelect: [item: DataItem | null]
+  editRequirement: [item: DataItem]
 }>()
 
 const showForm = ref(false)
@@ -116,13 +117,13 @@ const loadItems = async () => {
           
           return {
             id: req.id,
-            title: req.title || req.userRequirement.substring(0, 50),
-            description: req.description || req.userRequirement,
+            title: `迭代 ${req.iterationId}`,
+            description: req.userRequirement.length > 100 ? req.userRequirement.substring(0, 100) + '...' : req.userRequirement,
             status: req.status || 'created',
             createdAt: new Date(req.createdAt),
             updatedAt: req.updatedAt ? new Date(req.updatedAt) : undefined,
             iterationId: req.iterationId,
-            executionStatus: statusResult.executed ? 'executed' : 'not_executed',
+            executionStatus: statusResult.executed ? 'executed' : 'not_executed' as 'executed' | 'not_executed',
             userRequirement: req.userRequirement,
             prompt: req.prompt,
             jsonSchema: req.jsonSchema
@@ -165,6 +166,11 @@ const handleEdit = (item: DataItem) => {
   // 如果是需求类型，点击查看详情
   // 对于其他类型，跳转到编辑页面
   emit('itemSelect', item)
+}
+
+const handleEditRequirement = (item: DataItem) => {
+  // 编辑需求
+  emit('editRequirement', item)
 }
 
 const handleDelete = (item: DataItem) => {
@@ -357,14 +363,22 @@ if (window.api?.onWorkspaceChanged) {
           <p v-if="item.description" class="item-description">{{ item.description }}</p>
           <div class="item-footer">
             <span class="item-date">{{ formatDate(item.createdAt) }}</span>
-            <button class="delete-btn" @click.stop="handleDelete(item)" title="删除">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="3 6 5 6 21 6"></polyline>
-                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                <line x1="10" y1="11" x2="10" y2="17"></line>
-                <line x1="14" y1="11" x2="14" y2="17"></line>
-              </svg>
-            </button>
+            <div class="item-actions">
+              <button class="action-btn edit-btn" @click.stop="handleEditRequirement(item)" title="编辑">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                </svg>
+              </button>
+              <button class="action-btn delete-btn" @click.stop="handleDelete(item)" title="删除">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="3 6 5 6 21 6"></polyline>
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                  <line x1="10" y1="11" x2="10" y2="17"></line>
+                  <line x1="14" y1="11" x2="14" y2="17"></line>
+                </svg>
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -709,7 +723,12 @@ if (window.api?.onWorkspaceChanged) {
   color: #767676;
 }
 
-.delete-btn {
+.item-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.action-btn {
   width: 28px;
   height: 28px;
   padding: 0;
@@ -724,13 +743,19 @@ if (window.api?.onWorkspaceChanged) {
   transition: all 0.2s ease;
 }
 
+.edit-btn:hover {
+  background: rgba(33, 150, 243, 0.1);
+  border-color: rgba(33, 150, 243, 0.3);
+  color: #2196f3;
+}
+
 .delete-btn:hover {
   background: rgba(244, 67, 54, 0.1);
   border-color: rgba(244, 67, 54, 0.3);
   color: #f44336;
 }
 
-.delete-btn svg {
+.action-btn svg {
   width: 16px;
   height: 16px;
 }

@@ -6,7 +6,7 @@ const emit = defineEmits<{
 }>()
 
 // 侧边栏宽度（活动栏+侧边面板）
-const sidePanelWidth = ref(368) // 48(活动栏) + 320(侧边面板)
+const sidePanelWidth = ref(598) // 48(活动栏) + 550(侧边面板)
 const minSidePanelWidth = 48 // 最小只显示活动栏
 const minTerminalWidth = 0 // 终端可以完全隐藏
 

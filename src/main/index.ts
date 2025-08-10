@@ -244,8 +244,6 @@ app.whenReady().then(() => {
             requirements.push({
               ...data,
               id: data.iterationId,
-              title: data.userRequirement.substring(0, 100), // 截取前100个字符作为标题
-              description: data.userRequirement,
               status: 'created'
             })
           } catch (err) {
@@ -263,6 +261,44 @@ app.whenReady().then(() => {
     } catch (error) {
       console.error('获取需求列表失败:', error)
       return []
+    }
+  })
+  
+  // 更新需求
+  ipcMain.handle('update-requirement', async (_, data) => {
+    try {
+      const workspace = getCurrentWorkspace()
+      if (!workspace) {
+        return { success: false, error: '未找到工作空间' }
+      }
+      
+      const seClaudeDir = path.join(workspace, '.se-claude')
+      const jsonPath = path.join(seClaudeDir, `${data.iterationId}.json`)
+      
+      // 检查文件是否存在
+      if (!fs.existsSync(jsonPath)) {
+        return { success: false, error: '需求文件不存在' }
+      }
+      
+      // 更新 JSON 数据
+      const updatedData = {
+        ...data,
+        updatedAt: data.updatedAt || new Date().toISOString()
+      }
+      
+      fs.writeFileSync(jsonPath, JSON.stringify(updatedData, null, 2))
+      
+      // 如果 prompt 更改了，也更新 prompt 文件
+      const promptPath = path.join(seClaudeDir, `${data.iterationId}.prompt.md`)
+      fs.writeFileSync(promptPath, data.prompt)
+      
+      return { success: true }
+    } catch (error) {
+      console.error('更新需求失败:', error)
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : '更新失败' 
+      }
     }
   })
   

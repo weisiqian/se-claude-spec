@@ -38,8 +38,6 @@ declare global {
       getRequirements: () => Promise<Array<{
         id: string
         iterationId: string
-        title: string
-        description: string
         userRequirement: string
         prompt: string
         jsonSchema: string
@@ -50,6 +48,18 @@ declare global {
         executed: boolean
         content?: string
         filePath?: string
+        error?: string
+      }>
+      updateRequirement: (data: {
+        id: string
+        iterationId: string
+        userRequirement: string
+        prompt: string
+        jsonSchema: string
+        createdAt: string
+        updatedAt?: string
+      }) => Promise<{
+        success: boolean
         error?: string
       }>
     }

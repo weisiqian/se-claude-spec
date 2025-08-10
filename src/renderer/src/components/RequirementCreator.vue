@@ -99,6 +99,14 @@ const handleGenerateCommand = async () => {
       // 生成 claude 命令
       generatedCommand.value = `claude "/${iterationId.value}:requirement"`
       showCommandResult.value = true
+      
+      // 触发提交事件，通知父组件刷新列表
+      emit('submit', {
+        iterationId: iterationId.value,
+        userRequirement: userRequirement.value,
+        prompt: prompt.value,
+        jsonSchema: jsonSchema.value
+      })
     } else {
       alert('保存失败: ' + result.error)
     }

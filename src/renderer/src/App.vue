@@ -93,7 +93,7 @@ const updateTerminalState = () => {
 
 const handleRequirementSubmit = (data: any) => {
   console.log('新建需求提交:', data)
-  // TODO: 处理需求提交逻辑
+  // 关闭创建器后，需求列表会自动刷新（SidePanel 监听了工作空间变化）
   showRequirementCreator.value = false
 }
 

@@ -35,6 +35,17 @@ declare global {
         formDataPath?: string
         promptPath?: string
       }>
+      getRequirements: () => Promise<Array<{
+        id: string
+        iterationId: string
+        title: string
+        description: string
+        userRequirement: string
+        prompt: string
+        jsonSchema: string
+        createdAt: string
+        status: string
+      }>>
     }
   }
 }

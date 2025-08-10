@@ -186,6 +186,54 @@ app.whenReady().then(() => {
     return dirPath
   })
   
+  // 获取需求列表
+  ipcMain.handle('get-requirements', async () => {
+    try {
+      const workspace = getCurrentWorkspace()
+      if (!workspace) {
+        return []
+      }
+      
+      const seClaudeDir = path.join(workspace, '.se-claude')
+      if (!fs.existsSync(seClaudeDir)) {
+        return []
+      }
+      
+      // 读取所有 JSON 文件
+      const files = fs.readdirSync(seClaudeDir)
+      const requirements = []
+      
+      for (const file of files) {
+        if (file.endsWith('.json')) {
+          const filePath = path.join(seClaudeDir, file)
+          try {
+            const content = fs.readFileSync(filePath, 'utf-8')
+            const data = JSON.parse(content)
+            requirements.push({
+              ...data,
+              id: data.iterationId,
+              title: data.userRequirement.substring(0, 100), // 截取前100个字符作为标题
+              description: data.userRequirement,
+              status: 'created'
+            })
+          } catch (err) {
+            console.error(`读取需求文件失败: ${file}`, err)
+          }
+        }
+      }
+      
+      // 按创建时间倒序排序
+      requirements.sort((a, b) => {
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      })
+      
+      return requirements
+    } catch (error) {
+      console.error('获取需求列表失败:', error)
+      return []
+    }
+  })
+  
   // 保存需求
   ipcMain.handle('save-requirement', async (_, data: {
     iterationId: string

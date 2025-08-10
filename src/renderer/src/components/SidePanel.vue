@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 
 export interface DataItem {
   id: string
@@ -84,17 +84,40 @@ watch(() => props.type, (newType) => {
   }
 })
 
-const loadItems = () => {
-  const storageKey = `${props.type}_items`
-  const savedItems = localStorage.getItem(storageKey)
-  if (savedItems) {
-    items.value = JSON.parse(savedItems).map((item: any) => ({
-      ...item,
-      createdAt: new Date(item.createdAt),
-      updatedAt: item.updatedAt ? new Date(item.updatedAt) : undefined
-    }))
+const loadItems = async () => {
+  // 如果是需求管理，从文件系统读取真实数据
+  if (props.type === 'requirement') {
+    try {
+      const requirements = await window.api.getRequirements()
+      items.value = requirements.map((req: any) => ({
+        id: req.id,
+        title: req.title || req.userRequirement.substring(0, 50),
+        description: req.description || req.userRequirement,
+        status: req.status || 'created',
+        createdAt: new Date(req.createdAt),
+        updatedAt: req.updatedAt ? new Date(req.updatedAt) : undefined,
+        iterationId: req.iterationId,
+        userRequirement: req.userRequirement,
+        prompt: req.prompt,
+        jsonSchema: req.jsonSchema
+      }))
+    } catch (error) {
+      console.error('加载需求列表失败:', error)
+      items.value = []
+    }
   } else {
-    items.value = []
+    // 其他类型仍从 localStorage 读取
+    const storageKey = `${props.type}_items`
+    const savedItems = localStorage.getItem(storageKey)
+    if (savedItems) {
+      items.value = JSON.parse(savedItems).map((item: any) => ({
+        ...item,
+        createdAt: new Date(item.createdAt),
+        updatedAt: item.updatedAt ? new Date(item.updatedAt) : undefined
+      }))
+    } else {
+      items.value = []
+    }
   }
 }
 
@@ -159,6 +182,22 @@ const formatDate = (date: Date) => {
     day: '2-digit',
     hour: '2-digit',
     minute: '2-digit'
+  })
+}
+
+// 组件挂载时加载数据
+onMounted(() => {
+  if (props.type) {
+    loadItems()
+  }
+})
+
+// 监听工作空间变化，重新加载需求
+if (window.api?.onWorkspaceChanged) {
+  window.api.onWorkspaceChanged(() => {
+    if (props.type === 'requirement') {
+      loadItems()
+    }
   })
 }
 </script>

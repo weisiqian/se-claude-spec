@@ -25,7 +25,7 @@
           <span class="menu-text">复制</span>
           <span class="menu-shortcut">Ctrl+C</span>
         </div>
-        <div class="context-menu-item" @click="handleCut" :class="{ 'disabled': showPreviewMode }">
+        <div v-if="!props.readOnly" class="context-menu-item" @click="handleCut" :class="{ 'disabled': showPreviewMode }">
           <span class="menu-icon">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <circle cx="6" cy="6" r="3"/>
@@ -38,7 +38,7 @@
           <span class="menu-text">剪切</span>
           <span class="menu-shortcut">Ctrl+X</span>
         </div>
-        <div class="context-menu-item" @click="handlePaste" :class="{ 'disabled': showPreviewMode }">
+        <div v-if="!props.readOnly" class="context-menu-item" @click="handlePaste" :class="{ 'disabled': showPreviewMode }">
           <span class="menu-icon">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
@@ -48,10 +48,10 @@
           <span class="menu-text">粘贴</span>
           <span class="menu-shortcut">Ctrl+V</span>
         </div>
-        <div class="context-menu-divider" v-if="props.enablePlaceholder && !showPreviewMode"></div>
+        <div class="context-menu-divider" v-if="props.enablePlaceholder && !showPreviewMode && !props.readOnly"></div>
         <div 
           class="context-menu-item has-submenu" 
-          v-if="props.enablePlaceholder && !showPreviewMode"
+          v-if="props.enablePlaceholder && !showPreviewMode && !props.readOnly"
           @mouseenter="showPlaceholderMenu"
           @mouseleave="hidePlaceholderMenu"
         >
@@ -633,8 +633,8 @@ const handleCopy = () => {
 }
 
 const handleCut = () => {
-  if (showPreviewMode.value) {
-    // 预览模式下不允许剪切
+  if (showPreviewMode.value || props.readOnly) {
+    // 预览模式或只读模式下不允许剪切
     hideContextMenu()
     return
   }
@@ -647,8 +647,8 @@ const handleCut = () => {
 }
 
 const handlePaste = async () => {
-  if (showPreviewMode.value) {
-    // 预览模式下不允许粘贴
+  if (showPreviewMode.value || props.readOnly) {
+    // 预览模式或只读模式下不允许粘贴
     hideContextMenu()
     return
   }

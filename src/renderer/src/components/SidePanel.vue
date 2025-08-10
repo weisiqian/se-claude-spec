@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 
 export interface DataItem {
   id: string
@@ -8,6 +8,8 @@ export interface DataItem {
   status?: string
   createdAt: Date
   updatedAt?: Date
+  executionStatus?: 'not_executed' | 'executed'
+  iterationId?: string
 }
 
 const props = defineProps<{
@@ -29,6 +31,10 @@ const items = ref<DataItem[]>([])
 // 删除确认弹窗相关
 const showDeleteDialog = ref(false)
 const deleteTarget = ref<DataItem | null>(null)
+
+// 定时刷新相关
+const autoRefreshTimer = ref<NodeJS.Timeout | null>(null)
+const AUTO_REFRESH_INTERVAL = 10000 // 10秒自动刷新
 
 const filteredItems = computed(() => {
   if (!searchText.value) return items.value
@@ -85,6 +91,15 @@ watch(() => props.type, (newType) => {
     showForm.value = false
     selectedItem.value = null
     formData.value = {}
+    
+    // 如果是需求管理，启动自动刷新
+    if (newType === 'requirement') {
+      startAutoRefresh()
+    } else {
+      stopAutoRefresh()
+    }
+  } else {
+    stopAutoRefresh()
   }
 })
 
@@ -93,18 +108,29 @@ const loadItems = async () => {
   if (props.type === 'requirement') {
     try {
       const requirements = await window.api.getRequirements()
-      items.value = requirements.map((req: any) => ({
-        id: req.id,
-        title: req.title || req.userRequirement.substring(0, 50),
-        description: req.description || req.userRequirement,
-        status: req.status || 'created',
-        createdAt: new Date(req.createdAt),
-        updatedAt: req.updatedAt ? new Date(req.updatedAt) : undefined,
-        iterationId: req.iterationId,
-        userRequirement: req.userRequirement,
-        prompt: req.prompt,
-        jsonSchema: req.jsonSchema
-      }))
+      
+      // 并行检查所有需求的执行状态
+      const itemsWithStatus = await Promise.all(
+        requirements.map(async (req: any) => {
+          const statusResult = await window.api.checkRequirementStatus(req.iterationId)
+          
+          return {
+            id: req.id,
+            title: req.title || req.userRequirement.substring(0, 50),
+            description: req.description || req.userRequirement,
+            status: req.status || 'created',
+            createdAt: new Date(req.createdAt),
+            updatedAt: req.updatedAt ? new Date(req.updatedAt) : undefined,
+            iterationId: req.iterationId,
+            executionStatus: statusResult.executed ? 'executed' : 'not_executed',
+            userRequirement: req.userRequirement,
+            prompt: req.prompt,
+            jsonSchema: req.jsonSchema
+          }
+        })
+      )
+      
+      items.value = itemsWithStatus
     } catch (error) {
       console.error('加载需求列表失败:', error)
       items.value = []
@@ -201,11 +227,41 @@ const formatDate = (date: Date) => {
   })
 }
 
+// 启动自动刷新
+const startAutoRefresh = () => {
+  // 先清除旧的定时器
+  stopAutoRefresh()
+  
+  // 如果是需求管理，设置新的定时器
+  if (props.type === 'requirement') {
+    autoRefreshTimer.value = setInterval(() => {
+      loadItems()
+    }, AUTO_REFRESH_INTERVAL)
+  }
+}
+
+// 停止自动刷新
+const stopAutoRefresh = () => {
+  if (autoRefreshTimer.value) {
+    clearInterval(autoRefreshTimer.value)
+    autoRefreshTimer.value = null
+  }
+}
+
 // 组件挂载时加载数据
 onMounted(() => {
   if (props.type) {
     loadItems()
+    // 如果是需求管理，启动自动刷新
+    if (props.type === 'requirement') {
+      startAutoRefresh()
+    }
   }
+})
+
+// 组件卸载时清理定时器
+onUnmounted(() => {
+  stopAutoRefresh()
 })
 
 // 监听工作空间变化，重新加载需求
@@ -281,14 +337,34 @@ if (window.api?.onWorkspaceChanged) {
         >
           <div class="item-header">
             <h4 class="item-title">{{ item.title }}</h4>
-            <span v-if="item.status" class="item-status" :class="`status-${item.status}`">
-              {{ item.status }}
-            </span>
+            <div class="item-badges">
+              <span v-if="item.executionStatus" class="execution-badge" :class="`execution-${item.executionStatus}`">
+                <svg v-if="item.executionStatus === 'executed'" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                  <polyline points="22 4 12 14.01 9 11.01"/>
+                </svg>
+                <svg v-else width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"/>
+                  <path d="M12 6v6l4 2"/>
+                </svg>
+                {{ item.executionStatus === 'executed' ? '已执行' : '未执行' }}
+              </span>
+              <span v-if="item.status" class="item-status" :class="`status-${item.status}`">
+                {{ item.status }}
+              </span>
+            </div>
           </div>
           <p v-if="item.description" class="item-description">{{ item.description }}</p>
           <div class="item-footer">
             <span class="item-date">{{ formatDate(item.createdAt) }}</span>
-            <button class="delete-btn" @click.stop="handleDelete(item)" title="删除">🗑️</button>
+            <button class="delete-btn" @click.stop="handleDelete(item)" title="删除">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="3 6 5 6 21 6"></polyline>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                <line x1="10" y1="11" x2="10" y2="17"></line>
+                <line x1="14" y1="11" x2="14" y2="17"></line>
+              </svg>
+            </button>
           </div>
         </div>
       </div>
@@ -546,6 +622,40 @@ if (window.api?.onWorkspaceChanged) {
   font-size: 14px;
   font-weight: 600;
   color: #cccccc;
+  flex: 1;
+  margin-right: 8px;
+}
+
+.item-badges {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.execution-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  font-size: 11px;
+  border-radius: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.execution-badge.execution-executed {
+  background: rgba(76, 175, 80, 0.15);
+  color: #4caf50;
+}
+
+.execution-badge.execution-not_executed {
+  background: rgba(255, 255, 255, 0.08);
+  color: #969696;
+}
+
+.execution-badge svg {
+  width: 12px;
+  height: 12px;
 }
 
 .item-status {
@@ -600,17 +710,29 @@ if (window.api?.onWorkspaceChanged) {
 }
 
 .delete-btn {
-  padding: 4px;
-  background: none;
-  border: none;
-  font-size: 14px;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
   cursor: pointer;
-  opacity: 0.6;
-  transition: opacity 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #969696;
+  transition: all 0.2s ease;
 }
 
 .delete-btn:hover {
-  opacity: 1;
+  background: rgba(244, 67, 54, 0.1);
+  border-color: rgba(244, 67, 54, 0.3);
+  color: #f44336;
+}
+
+.delete-btn svg {
+  width: 16px;
+  height: 16px;
 }
 
 .form-container {

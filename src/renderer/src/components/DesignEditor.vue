@@ -540,8 +540,10 @@ const formatDate = (dateString: string) => {
         </div>
       </transition>
 
-      <!-- 操作按钮 -->
-      <div class="form-actions">
+    </div>
+    
+    <!-- 操作按钮（固定在底部） -->
+    <div class="form-actions">
         <button class="btn btn-secondary" @click="handleReset" title="重置到原始内容">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/>
@@ -612,7 +614,6 @@ const formatDate = (dateString: string) => {
             </div>
           </div>
         </div>
-      </div>
     </div>
   </div>
 </template>
@@ -626,6 +627,7 @@ const formatDate = (dateString: string) => {
   flex-direction: column;
   overflow: hidden;
   border-left: 1px solid #3e3e42;
+  position: relative;
 }
 
 .editor-header {
@@ -694,6 +696,7 @@ const formatDate = (dateString: string) => {
   flex: 1;
   overflow-y: auto;
   padding: 24px;
+  padding-bottom: 100px; /* 为固定底部按钮留出空间 */
 }
 
 .info-section,
@@ -1007,12 +1010,17 @@ const formatDate = (dateString: string) => {
 
 
 .form-actions {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
   display: flex;
   gap: 12px;
   align-items: center;
-  margin-top: 32px;
-  padding-top: 20px;
+  padding: 20px 24px;
+  background: #252526;
   border-top: 1px solid #3e3e42;
+  z-index: 10;
 }
 
 .actions-right {

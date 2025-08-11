@@ -655,9 +655,18 @@ onUnmounted(() => {
             </div>
           </div>
         </transition>
-        
-        <div class="edit-actions">
-          <button 
+      </div>
+      
+      <!-- 加载状态 -->
+      <div v-if="isLoading" class="loading-overlay">
+        <div class="loading-spinner"></div>
+        <span>检查执行状态...</span>
+      </div>
+    </div>
+    
+    <!-- 操作按钮（固定在底部） -->
+    <div class="edit-actions" v-if="isEditing">
+        <button 
             class="action-btn reset-btn"
             @click="handleReset"
             :disabled="isSaving"
@@ -709,15 +718,7 @@ onUnmounted(() => {
             >
               保存并执行
             </button>
-          </div>
         </div>
-      </div>
-      
-      <!-- 加载状态 -->
-      <div v-if="isLoading" class="loading-overlay">
-        <div class="loading-spinner"></div>
-        <span>检查执行状态...</span>
-      </div>
     </div>
   </div>
 </template>
@@ -731,6 +732,7 @@ onUnmounted(() => {
   flex-direction: column;
   overflow: hidden;
   border-left: 1px solid #3e3e42;
+  position: relative;
 }
 
 .detail-header {
@@ -822,7 +824,7 @@ onUnmounted(() => {
   flex: 1;
   overflow-y: auto;
   padding: 24px;
-  position: relative;
+  padding-bottom: 100px; /* 为固定底部按钮留出空间 */
 }
 
 /* 查看模式 */
@@ -1260,11 +1262,17 @@ onUnmounted(() => {
 }
 
 .edit-actions {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
   display: flex;
   gap: 12px;
   justify-content: space-between;
-  padding-top: 16px;
+  padding: 20px 24px;
+  background: #252526;
   border-top: 1px solid #3e3e42;
+  z-index: 10;
 }
 
 .actions-right {

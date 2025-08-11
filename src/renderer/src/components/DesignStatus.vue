@@ -309,9 +309,10 @@ const formatDate = (dateString: string) => {
           :enable-preview="true"
         />
       </div>
+    </div>
 
-      <!-- 操作按钮 -->
-      <div class="action-buttons">
+    <!-- 操作按钮（固定在底部） -->
+    <div class="action-buttons">
         <button class="btn btn-primary" @click="handleEdit">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
@@ -319,7 +320,6 @@ const formatDate = (dateString: string) => {
           </svg>
           编辑设计
         </button>
-      </div>
     </div>
   </div>
 </template>
@@ -333,6 +333,7 @@ const formatDate = (dateString: string) => {
   flex-direction: column;
   overflow: hidden;
   border-left: 1px solid #3e3e42;
+  position: relative;
 }
 
 .status-header {
@@ -401,6 +402,7 @@ const formatDate = (dateString: string) => {
   flex: 1;
   overflow-y: auto;
   padding: 24px;
+  padding-bottom: 100px; /* 为固定底部按钮留出空间 */
 }
 
 .info-section {
@@ -567,11 +569,16 @@ const formatDate = (dateString: string) => {
 }
 
 .action-buttons {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
   display: flex;
   gap: 12px;
-  margin-top: 32px;
-  padding-top: 20px;
+  padding: 20px 24px;
+  background: #252526;
   border-top: 1px solid #3e3e42;
+  z-index: 10;
 }
 
 .btn {

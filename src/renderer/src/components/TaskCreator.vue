@@ -436,8 +436,10 @@ onMounted(async () => {
           </div>
         </div>
       </transition>
-      
-      <div class="action-buttons">
+    </div>
+    
+    <!-- 操作按钮（固定在底部） -->
+    <div class="action-buttons">
         <button 
           class="action-btn generate-btn"
           @click="handleGenerateCommand"
@@ -464,7 +466,6 @@ onMounted(async () => {
           <span class="btn-icon">↻</span>
           重置
         </button>
-      </div>
     </div>
     
     <!-- 未保存提示 -->
@@ -505,6 +506,7 @@ onMounted(async () => {
   flex-direction: column;
   overflow: hidden;
   border-left: 1px solid #3e3e42;
+  position: relative;
 }
 
 .creator-header {
@@ -580,6 +582,7 @@ onMounted(async () => {
   flex-direction: column;
   overflow-y: auto;
   padding: 24px;
+  padding-bottom: 100px; /* 为固定底部按钮留出空间 */
 }
 
 .form-section {
@@ -753,11 +756,16 @@ onMounted(async () => {
 }
 
 .action-buttons {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
   display: flex;
   gap: 8px;
-  margin-top: 20px;
-  padding-top: 16px;
+  padding: 20px 24px;
+  background: #252526;
   border-top: 1px solid #3e3e42;
+  z-index: 10;
 }
 
 .action-btn {

@@ -96,8 +96,8 @@ watch(() => props.type, (newType) => {
     selectedItem.value = null
     formData.value = {}
     
-    // 如果是需求管理，启动自动刷新
-    if (newType === 'requirement') {
+    // 如果是需求管理或设计管理，启动自动刷新
+    if (newType === 'requirement' || newType === 'design') {
       startAutoRefresh()
     } else {
       stopAutoRefresh()
@@ -152,7 +152,8 @@ const loadItems = async () => {
           (design.userDesignRequest || design.description),
         createdAt: new Date(design.createdAt),
         updatedAt: design.updatedAt ? new Date(design.updatedAt) : undefined,
-        requirementIterationId: design.requirementIterationId
+        requirementIterationId: design.requirementIterationId,
+        executionStatus: design.executionStatus || 'not_executed' // 保留执行状态
       }))
     } catch (error) {
       console.error('加载设计列表失败:', error)
@@ -318,8 +319,8 @@ const startAutoRefresh = () => {
   // 先清除旧的定时器
   stopAutoRefresh()
   
-  // 如果是需求管理，设置新的定时器
-  if (props.type === 'requirement') {
+  // 如果是需求管理或设计管理，设置新的定时器
+  if (props.type === 'requirement' || props.type === 'design') {
     autoRefreshTimer.value = setInterval(() => {
       loadItems()
     }, AUTO_REFRESH_INTERVAL)
@@ -338,8 +339,8 @@ const stopAutoRefresh = () => {
 onMounted(() => {
   if (props.type) {
     loadItems()
-    // 如果是需求管理，启动自动刷新
-    if (props.type === 'requirement') {
+    // 如果是需求管理或设计管理，启动自动刷新
+    if (props.type === 'requirement' || props.type === 'design') {
       startAutoRefresh()
     }
   }

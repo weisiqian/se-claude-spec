@@ -363,8 +363,8 @@ onUnmounted(() => {
             :requirement="selectedRequirement"
             :design="selectedDesign"
             :is-new="!selectedDesign"
-            @close="() => { showDesignEditor = false; activePanel = 'requirement' }"
-            @back="() => { showDesignEditor = false; activePanel = 'requirement' }"
+            @close="() => { showDesignEditor = false; }"
+            @back="() => { showDesignEditor = false; }"
             @save="handleSaveDesign"
             @execute-command="handleExecuteCommand"
           />

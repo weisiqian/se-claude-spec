@@ -522,15 +522,23 @@ app.whenReady().then(() => {
         const dirPath = path.join(seClaudeDir, dir)
         // 检查是否是目录
         if (fs.statSync(dirPath).isDirectory()) {
-          const designPath = path.join(dirPath, 'specs', 'design.json')
+          const designJsonPath = path.join(dirPath, 'specs', 'design.json')
           // 检查 design.json 是否存在
-          if (fs.existsSync(designPath)) {
+          if (fs.existsSync(designJsonPath)) {
             try {
-              const content = fs.readFileSync(designPath, 'utf-8')
+              const content = fs.readFileSync(designJsonPath, 'utf-8')
               const design = JSON.parse(content)
-              designs.push(design)
+              
+              // 使用与 check-design-status 相同的逻辑检查执行状态
+              const designOutputPath = path.join(workspace, '.design', design.iterationId || dir, 'specs', 'design.md')
+              const isExecuted = fs.existsSync(designOutputPath)
+              
+              designs.push({
+                ...design,
+                executionStatus: isExecuted ? 'executed' : 'not_executed'
+              })
             } catch (err) {
-              console.error(`读取设计文件失败: ${designPath}`, err)
+              console.error(`读取设计文件失败: ${designJsonPath}`, err)
             }
           }
         }

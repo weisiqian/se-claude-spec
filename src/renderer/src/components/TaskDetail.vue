@@ -39,6 +39,13 @@ const userTaskRequest = ref('')
 const prompt = ref('')
 const jsonSchema = ref('')
 
+// 原始数据备份（用于检测变更）
+const originalData = ref({
+  userTaskRequest: '',
+  prompt: '',
+  jsonSchema: ''
+})
+
 // 状态
 const isEditing = ref(props.editMode || props.startInEditMode || false)
 const isSaving = ref(false)
@@ -64,6 +71,13 @@ const AUTO_REFRESH_INTERVAL = 5000 // 5秒自动刷新
 
 // 命令相关
 const generatedCommand = computed(() => `claude "/${props.task.iterationId}:task"`)
+
+// 检测内容是否有变更
+const hasUnsavedChanges = computed(() => {
+  return userTaskRequest.value !== originalData.value.userTaskRequest ||
+         prompt.value !== originalData.value.prompt ||
+         jsonSchema.value !== originalData.value.jsonSchema
+})
 
 
 // 占位符数据，用于预览时替换
@@ -116,6 +130,13 @@ const initFormData = () => {
   userTaskRequest.value = props.task.userTaskRequest || ''
   prompt.value = props.task.prompt || DEFAULT_TASK_PROMPT
   jsonSchema.value = props.task.jsonSchema || ''
+  
+  // 备份原始数据
+  originalData.value = {
+    userTaskRequest: userTaskRequest.value,
+    prompt: prompt.value,
+    jsonSchema: jsonSchema.value
+  }
 }
 
 // 切换编辑模式
@@ -125,6 +146,93 @@ const toggleEditMode = () => {
     initFormData()
   }
   isEditing.value = !isEditing.value
+}
+
+// 重置表单
+const handleReset = () => {
+  initFormData()
+}
+
+// 取消编辑
+const handleCancel = () => {
+  // 恢复原始数据并退出编辑模式
+  initFormData()
+  isEditing.value = false
+}
+
+// 保存任务
+const handleSave = async () => {
+  isSaving.value = true
+  try {
+    const updatedTask = {
+      ...props.task,
+      userTaskRequest: userTaskRequest.value,
+      prompt: prompt.value,
+      jsonSchema: jsonSchema.value,
+      updatedAt: new Date().toISOString()
+    }
+    
+    // 调用保存API
+    await window.api.updateTask(updatedTask)
+    
+    // 更新原始数据备份
+    originalData.value = {
+      userTaskRequest: userTaskRequest.value,
+      prompt: prompt.value,
+      jsonSchema: jsonSchema.value
+    }
+    
+    // 触发更新事件
+    emit('update', updatedTask)
+    
+    // 退出编辑模式
+    isEditing.value = false
+  } catch (error) {
+    console.error('保存任务失败:', error)
+    alert('保存失败，请重试')
+  } finally {
+    isSaving.value = false
+  }
+}
+
+// 保存并执行
+const handleSaveAndExecute = async () => {
+  isSaving.value = true
+  try {
+    const updatedTask = {
+      ...props.task,
+      userTaskRequest: userTaskRequest.value,
+      prompt: prompt.value,
+      jsonSchema: jsonSchema.value,
+      updatedAt: new Date().toISOString()
+    }
+    
+    // 调用保存API
+    await window.api.updateTask(updatedTask)
+    
+    // 更新原始数据备份
+    originalData.value = {
+      userTaskRequest: userTaskRequest.value,
+      prompt: prompt.value,
+      jsonSchema: jsonSchema.value
+    }
+    
+    // 触发更新事件
+    emit('update', updatedTask)
+    
+    // 退出编辑模式
+    isEditing.value = false
+    
+    // 执行命令
+    setTimeout(() => {
+      handleExecuteCommand()
+    }, 500)
+  } catch (error) {
+    console.error('保存任务失败:', error)
+    alert('保存失败，请重试')
+  } finally {
+    isSaving.value = false
+  }
 }
 
 
@@ -242,7 +350,7 @@ onUnmounted(() => {
             <path d="M10 13L5 8L10 3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
         </button>
-        <h3 class="detail-title">任务详情</h3>
+        <h3 class="detail-title">{{ isEditing ? '编辑任务' : '任务详情' }}</h3>
         <span class="iteration-badge">{{ task.iterationId }}</span>
       </div>
       <div class="header-actions">
@@ -321,6 +429,12 @@ onUnmounted(() => {
           />
         </div>
         
+        <!-- 任务要求 -->
+        <div class="info-section">
+          <h4 class="section-title">任务要求</h4>
+          <div class="description-content">{{ task.userTaskRequest || '暂无任务要求' }}</div>
+        </div>
+        
         <!-- 关联设计文档 -->
         <div v-if="hasDesignDoc && designContent" class="info-section">
           <h4 class="section-title">
@@ -335,12 +449,6 @@ onUnmounted(() => {
             :enable-maximize="true"
             :enable-preview="true"
           />
-        </div>
-        
-        <!-- 任务要求 -->
-        <div v-if="task.userTaskRequest" class="info-section">
-          <h4 class="section-title">任务要求</h4>
-          <div class="description-content">{{ task.userTaskRequest }}</div>
         </div>
         
         
@@ -440,15 +548,14 @@ onUnmounted(() => {
           <div class="form-group">
             <label class="form-label">
               任务要求
-              <span class="input-hint">不可修改</span>
+              <span class="required">*</span>
             </label>
             <textarea
               v-model="userTaskRequest"
-              class="form-textarea readonly-textarea"
-              placeholder="请输入任务要求（可选）..."
+              class="form-textarea"
+              placeholder="请输入任务要求..."
               rows="6"
-              :disabled="true"
-              readonly
+              required
             ></textarea>
           </div>
           
@@ -487,15 +594,16 @@ onUnmounted(() => {
           <div class="form-group">
             <label class="form-label">
               提示词
-              <span class="input-hint">不可修改</span>
+              <span class="required">*</span>
+              <span class="input-hint">（支持Markdown和变量替换）</span>
             </label>
             <MonacoEditor
-              :modelValue="prompt"
+              v-model="prompt"
               language="markdown"
               :height="200"
               :min-height="150"
               :max-height="400"
-              :read-only="true"
+              :read-only="false"
               :enable-maximize="true"
               :enable-preview="true"
               :enable-placeholder="true"
@@ -512,15 +620,15 @@ onUnmounted(() => {
           <div class="form-group">
             <label class="form-label">
               JSON Schema
-              <span class="input-hint">不可修改</span>
+              <span class="input-hint">（可选）</span>
             </label>
             <MonacoEditor
-              :modelValue="jsonSchema"
+              v-model="jsonSchema"
               language="json"
               :height="250"
               :min-height="150"
               :max-height="500"
-              :read-only="true"
+              :read-only="false"
               :enable-maximize="true"
             />
           </div>
@@ -550,12 +658,27 @@ onUnmounted(() => {
         
         <div class="edit-actions">
           <button 
+            class="action-btn reset-btn"
+            @click="handleReset"
+            :disabled="isSaving"
+            title="重置到原始内容"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/>
+              <path d="M21 3v5h-5"/>
+              <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/>
+              <path d="M8 16H3v5"/>
+            </svg>
+            重置
+          </button>
+          
+          <button 
             class="action-btn generate-btn"
             @click="handleGenerateCommand"
             :disabled="isSaving"
           >
             <span class="btn-icon">⚡</span>
-            查看命令
+            生成命令
           </button>
           
           <button 
@@ -569,8 +692,22 @@ onUnmounted(() => {
           </button>
           
           <div class="actions-right">
-            <button class="action-btn cancel-btn" @click="toggleEditMode" :disabled="isSaving">
-              返回
+            <button class="action-btn cancel-btn" @click="handleCancel" :disabled="isSaving">
+              取消
+            </button>
+            <button 
+              class="action-btn save-btn"
+              @click="handleSave"
+              :disabled="isSaving || !hasUnsavedChanges"
+            >
+              {{ isSaving ? '保存中...' : '保存更改' }}
+            </button>
+            <button 
+              class="action-btn save-execute-btn"
+              @click="handleSaveAndExecute"
+              :disabled="isSaving || !hasUnsavedChanges"
+            >
+              保存并执行
             </button>
           </div>
         </div>
@@ -1125,9 +1262,15 @@ onUnmounted(() => {
 .edit-actions {
   display: flex;
   gap: 12px;
-  justify-content: flex-end;
+  justify-content: space-between;
   padding-top: 16px;
   border-top: 1px solid #3e3e42;
+}
+
+.actions-right {
+  display: flex;
+  gap: 12px;
+  margin-left: auto;
 }
 
 .action-btn {
@@ -1140,6 +1283,23 @@ onUnmounted(() => {
   transition: all 0.15s ease;
 }
 
+.reset-btn {
+  background: #3e3e42;
+  color: #cccccc;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.reset-btn:hover:not(:disabled) {
+  background: #4e4e52;
+}
+
+.reset-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
 .cancel-btn {
   background: #3e3e42;
   color: #cccccc;
@@ -1150,12 +1310,31 @@ onUnmounted(() => {
 }
 
 .save-btn {
-  background: #0e639c;
+  background: #007acc;
   color: white;
 }
 
 .save-btn:hover:not(:disabled) {
-  background: #1177bb;
+  background: #0062a3;
+}
+
+.save-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.save-execute-btn {
+  background: #16825d;
+  color: white;
+}
+
+.save-execute-btn:hover:not(:disabled) {
+  background: #1a9b6e;
+}
+
+.save-execute-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .action-btn:disabled {

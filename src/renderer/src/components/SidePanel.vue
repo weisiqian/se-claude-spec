@@ -23,6 +23,7 @@ const emit = defineEmits<{
   editRequirement: [item: DataItem]
   editDesign: [item: DataItem]
   editTask: [item: DataItem]
+  viewTask: [item: DataItem]
   createDesign: [requirement: DataItem]
   viewRequirement: [iterationId: string]
 }>()
@@ -213,9 +214,13 @@ const handleCreate = () => {
 }
 
 const handleEdit = (item: DataItem) => {
-  // 如果是需求类型，点击查看详情
+  // 如果是任务类型，点击查看详情（只读模式）
   // 对于其他类型，跳转到编辑页面
-  emit('itemSelect', item)
+  if (props.type === 'task') {
+    emit('viewTask', item)  // 只读模式查看任务
+  } else {
+    emit('itemSelect', item)
+  }
 }
 
 const handleEditRequirement = (item: DataItem) => {

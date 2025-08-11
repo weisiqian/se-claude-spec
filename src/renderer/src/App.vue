@@ -260,6 +260,13 @@ const handleEditTask = (task: any) => {
   showTaskCreator.value = false
 }
 
+const handleViewTask = (task: any) => {
+  // 显示任务详情页面（只读模式）
+  selectedTask.value = { ...task, _startInEditMode: false }
+  showTaskDetail.value = true
+  showTaskCreator.value = false
+}
+
 const handleSaveRequirement = (shouldClose = true) => {
   // 根据参数决定是否关闭编辑器
   if (shouldClose) {
@@ -454,6 +461,7 @@ onUnmounted(() => {
             @edit-requirement="handleEditRequirement"
             @edit-design="handleEditDesign"
             @edit-task="handleEditTask"
+            @view-task="handleViewTask"
             @create-design="handleCreateDesign"
             @view-requirement="handleViewRequirement"
           />

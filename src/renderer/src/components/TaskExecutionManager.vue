@@ -100,25 +100,111 @@ const selectedTasksCount = computed(() => selectedTasks.value.size)
 const hasSelectedTasks = computed(() => selectedTasksCount.value > 0)
 
 // 加载执行树
-const loadExecutionTree = async () => {
-  isLoading.value = true
+const loadExecutionTree = async (isInitialLoad = false) => {
+  // 初始加载时显示loading
+  if (isInitialLoad) {
+    isLoading.value = true
+  }
+  
   try {
     const tree = await window.api.getExecutionTree()
-    executionTree.value = tree.map((item: any, index: number) => ({
-      ...item,
-      expanded: index === 0, // 默认展开第一个迭代
-      selected: false,
-      partiallySelected: false,
-      tasks: item.tasks?.map((task: any) => ({
-        ...task,
+    
+    // 如果是初始加载，直接设置数据
+    if (isInitialLoad || executionTree.value.length === 0) {
+      executionTree.value = tree.map((item: any, index: number) => ({
+        ...item,
+        expanded: index === 0, // 默认展开第一个迭代
         selected: false,
-        status: task.status || 'pending'
-      })) || []
-    }))
+        partiallySelected: false,
+        tasks: item.tasks?.map((task: any) => ({
+          ...task,
+          selected: false,
+          status: task.status || 'pending'
+        })) || []
+      }))
+    } else {
+      // 非初始加载，智能更新数据
+      // 保存当前的选中状态和展开状态
+      const expandedIterations = new Set<string>()
+      const selectedTaskKeys = new Set<string>()
+      
+      executionTree.value.forEach(iteration => {
+        if (iteration.expanded) {
+          expandedIterations.add(iteration.iterationId)
+        }
+        iteration.tasks.forEach(task => {
+          if (task.selected) {
+            selectedTaskKeys.add(`${iteration.iterationId}-${task.id}`)
+          }
+        })
+      })
+      
+      // 只更新有变化的数据
+      tree.forEach((newItem: any) => {
+        const existingIteration = executionTree.value.find(
+          it => it.iterationId === newItem.iterationId
+        )
+        
+        if (existingIteration) {
+          // 更新任务状态，但保留选中和展开状态
+          const updatedTasks = (newItem.tasks || []).map((task: any) => {
+            const taskKey = `${newItem.iterationId}-${task.id}`
+            const existingTask = existingIteration.tasks.find(t => t.id === task.id)
+            return {
+              ...task,
+              selected: existingTask?.selected || selectedTaskKeys.has(taskKey),
+              status: task.status || 'pending'
+            }
+          })
+          
+          // 只在数据真正有变化时更新
+          const hasTaskChanges = JSON.stringify(existingIteration.tasks.map(t => ({
+            id: t.id,
+            status: t.status,
+            title: t.title,
+            description: t.description
+          }))) !== JSON.stringify(updatedTasks.map(t => ({
+            id: t.id,
+            status: t.status,
+            title: t.title,
+            description: t.description
+          })))
+          
+          if (hasTaskChanges) {
+            existingIteration.tasks = updatedTasks
+            
+            // 重新计算迭代的选中状态
+            const selectedCount = updatedTasks.filter(t => t.selected).length
+            existingIteration.selected = selectedCount === updatedTasks.length && updatedTasks.length > 0
+            existingIteration.partiallySelected = selectedCount > 0 && selectedCount < updatedTasks.length
+          }
+        } else {
+          // 新的迭代，添加到列表
+          executionTree.value.push({
+            ...newItem,
+            expanded: false,
+            selected: false,
+            partiallySelected: false,
+            tasks: (newItem.tasks || []).map((task: any) => ({
+              ...task,
+              selected: false,
+              status: task.status || 'pending'
+            }))
+          })
+        }
+      })
+      
+      // 移除不存在的迭代
+      executionTree.value = executionTree.value.filter(iteration =>
+        tree.some((item: any) => item.iterationId === iteration.iterationId)
+      )
+    }
   } catch (error) {
     console.error('加载执行树失败:', error)
   } finally {
-    isLoading.value = false
+    if (isInitialLoad) {
+      isLoading.value = false
+    }
   }
 }
 
@@ -304,27 +390,6 @@ const formatStatus = (status: string) => {
   }
 }
 
-// 获取状态图标SVG路径
-const getStatusIconPath = (status: string) => {
-  switch (status) {
-    case 'pending': 
-      // 时钟图标 - 待执行
-      return 'M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z'
-    case 'executing': 
-      // 播放图标 - 执行中
-      return 'M8 5v14l11-7z'
-    case 'success': 
-      // 勾选图标 - 成功
-      return 'M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z'
-    case 'failed': 
-      // 错误图标 - 失败
-      return 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z'
-    default: 
-      // 时钟图标 - 默认
-      return 'M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z'
-  }
-}
-
 // 获取状态样式类
 const getStatusClass = (status: string) => {
   return `status-${status}`
@@ -389,7 +454,7 @@ const stopDrag = () => {
 }
 
 onMounted(() => {
-  loadExecutionTree()
+  loadExecutionTree(true) // 初始加载
   startAutoRefresh()
   
   // 恢复用户之前调整的宽度
@@ -485,7 +550,7 @@ onUnmounted(() => {
         <div v-else class="tree-list">
           <div 
             v-for="iteration in filteredTree"
-            :key="iteration.iterationId"
+            :key="`iteration-${iteration.iterationId}`"
             class="iteration-item"
           >
             <div class="iteration-header">
@@ -543,7 +608,7 @@ onUnmounted(() => {
                 <div class="task-list">
                   <div 
                     v-for="task in iteration.tasks"
-                    :key="task.id"
+                    :key="`task-${iteration.iterationId}-${task.id}`"
                     class="task-item"
                     :class="{ 'selected': task.selected }"
                   >

@@ -12,6 +12,8 @@ import RequirementStatus from './components/RequirementStatus.vue'
 import RequirementEditor from './components/RequirementEditor.vue'
 import DesignEditor from './components/DesignEditor.vue'
 import DesignStatus from './components/DesignStatus.vue'
+import TaskCreator from './components/TaskCreator.vue'
+import TaskDetail from './components/TaskDetail.vue'
 
 const projectPath = ref<string | null>(null)
 const showForm = ref(false)
@@ -29,8 +31,11 @@ const showRequirementStatus = ref(false)
 const showRequirementEditor = ref(false)
 const showDesignEditor = ref(false)
 const showDesignStatus = ref(false)
+const showTaskCreator = ref(false)
+const showTaskDetail = ref(false)
 const selectedRequirement = ref<any>(null)
 const selectedDesign = ref<any>(null)
+const selectedTask = ref<any>(null)
 
 // 提供主题状态给子组件
 provide('isDark', isDark)
@@ -106,6 +111,8 @@ const handlePanelItemSelect = (item: any) => {
       showRequirementEditor.value = false
       showDesignEditor.value = false
       showDesignStatus.value = false
+      showTaskCreator.value = false
+      showTaskDetail.value = false
     } else if (activePanel.value === 'design') {
       // 如果是设计管理，显示设计编辑器（新建模式，无关联需求）
       selectedRequirement.value = null
@@ -114,6 +121,17 @@ const handlePanelItemSelect = (item: any) => {
       showRequirementCreator.value = false
       showRequirementStatus.value = false
       showRequirementEditor.value = false
+      showDesignStatus.value = false
+      showTaskCreator.value = false
+      showTaskDetail.value = false
+    } else if (activePanel.value === 'task') {
+      // 如果是任务管理，显示任务创建器
+      showTaskCreator.value = true
+      showTaskDetail.value = false
+      showRequirementCreator.value = false
+      showRequirementStatus.value = false
+      showRequirementEditor.value = false
+      showDesignEditor.value = false
       showDesignStatus.value = false
     } else {
       // 其他类型使用原有的表单页面
@@ -132,6 +150,8 @@ const handlePanelItemSelect = (item: any) => {
       showRequirementEditor.value = false
       showDesignEditor.value = false
       showDesignStatus.value = false
+      showTaskCreator.value = false
+      showTaskDetail.value = false
     } else if (activePanel.value === 'design') {
       // 如果是设计，显示设计状态页面
       selectedDesign.value = item
@@ -141,6 +161,18 @@ const handlePanelItemSelect = (item: any) => {
       showRequirementCreator.value = false
       showRequirementStatus.value = false
       showRequirementEditor.value = false
+      showTaskCreator.value = false
+      showTaskDetail.value = false
+    } else if (activePanel.value === 'task') {
+      // 如果是任务，显示任务详情页面
+      selectedTask.value = item
+      showTaskDetail.value = true
+      showTaskCreator.value = false
+      showRequirementCreator.value = false
+      showRequirementStatus.value = false
+      showRequirementEditor.value = false
+      showDesignEditor.value = false
+      showDesignStatus.value = false
     } else {
       // 其他类型编辑
       formType.value = activePanel.value as 'requirement' | 'design' | 'task'
@@ -221,6 +253,13 @@ const handleEditDesign = (item?: any) => {
   showRequirementEditor.value = false
 }
 
+const handleEditTask = (task: any) => {
+  // 显示任务详情页面（并进入编辑模式）
+  selectedTask.value = { ...task, _startInEditMode: true }
+  showTaskDetail.value = true
+  showTaskCreator.value = false
+}
+
 const handleSaveRequirement = (shouldClose = true) => {
   // 根据参数决定是否关闭编辑器
   if (shouldClose) {
@@ -229,7 +268,7 @@ const handleSaveRequirement = (shouldClose = true) => {
   // 需求列表会自动刷新
 }
 
-const handleSaveDesign = async (designData: any) => {
+const handleSaveDesign = async () => {
   // 设计已经在 DesignEditor 组件中保存到文件系统
   // 这里只需要关闭编辑器并显示设计列表
   showDesignEditor.value = false
@@ -255,10 +294,23 @@ const handleViewRequirement = async (iterationId: string) => {
       showRequirementEditor.value = false
       showDesignEditor.value = false
       showDesignStatus.value = false
+      showTaskCreator.value = false
+      showTaskDetail.value = false
     }
   } catch (error) {
     console.error('查看需求失败:', error)
   }
+}
+
+const handleTaskSubmit = (data: any) => {
+  console.log('任务提交:', data)
+  // 任务列表会自动刷新
+}
+
+const handleTaskUpdate = (data: any) => {
+  console.log('任务更新:', data)
+  selectedTask.value = data
+  // 任务列表会自动刷新
 }
 
 onMounted(async () => {
@@ -376,6 +428,23 @@ onUnmounted(() => {
             @edit="handleEditDesign"
             @execute-command="handleExecuteCommand"
           />
+          <TaskCreator
+            v-else-if="showTaskCreator && activePanel === 'task'"
+            :project-path="projectPath"
+            @close="() => { showTaskCreator = false; activePanel = '' }"
+            @back="showTaskCreator = false"
+            @submit="handleTaskSubmit"
+            @execute-command="handleExecuteCommand"
+          />
+          <TaskDetail
+            v-else-if="showTaskDetail && activePanel === 'task' && selectedTask"
+            :task="selectedTask"
+            :start-in-edit-mode="selectedTask._startInEditMode"
+            @close="showTaskDetail = false; if(selectedTask._startInEditMode) delete selectedTask._startInEditMode"
+            @back="showTaskDetail = false; if(selectedTask._startInEditMode) delete selectedTask._startInEditMode"
+            @update="handleTaskUpdate"
+            @execute-command="handleExecuteCommand"
+          />
           <SidePanel
             v-else
             :type="activePanel"
@@ -384,6 +453,7 @@ onUnmounted(() => {
             @item-select="handlePanelItemSelect"
             @edit-requirement="handleEditRequirement"
             @edit-design="handleEditDesign"
+            @edit-task="handleEditTask"
             @create-design="handleCreateDesign"
             @view-requirement="handleViewRequirement"
           />

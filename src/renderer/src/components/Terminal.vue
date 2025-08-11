@@ -189,7 +189,7 @@ const createTerminal = async (id: string, type: string = 'bash') => {
         const hasSelection = terminal.hasSelection()
         
         // 构建菜单项
-        const menuItems = []
+        const menuItems: any[] = []
         
         // 复制/粘贴组
         if (hasSelection) {

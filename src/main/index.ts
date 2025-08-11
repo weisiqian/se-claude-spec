@@ -231,7 +231,7 @@ app.whenReady().then(() => {
         return []
       }
       
-      const requirements = []
+      const requirements: any[] = []
       
       // 读取所有迭代目录
       const dirs = fs.readdirSync(seClaudeDir)
@@ -514,7 +514,7 @@ app.whenReady().then(() => {
         return []
       }
       
-      const designs = []
+      const designs: any[] = []
       
       // 读取所有迭代目录
       const dirs = fs.readdirSync(seClaudeDir)
@@ -708,6 +708,277 @@ app.whenReady().then(() => {
         success: false,
         error: error instanceof Error ? error.message : '未知错误'
       }
+    }
+  })
+
+  // 任务管理 API
+  // 保存任务
+  ipcMain.handle('save-task', async (_, data: {
+    iterationId: string
+    userTaskRequest: string
+    prompt: string
+    jsonSchema?: string
+    requirementIterationId?: string
+    designIterationId?: string
+    createdAt: string
+    updatedAt?: string
+  }) => {
+    try {
+      const workspace = getCurrentWorkspace()
+      if (!workspace) {
+        return { success: false, error: '未设置工作空间' }
+      }
+      
+      // 创建 .se-claude/{iterationId}/specs 目录
+      const taskDir = path.join(workspace, '.se-claude', data.iterationId, 'specs')
+      if (!fs.existsSync(taskDir)) {
+        fs.mkdirSync(taskDir, { recursive: true })
+      }
+      
+      // 保存任务JSON数据到 .se-claude/{iterationId}/specs/task.json
+      const jsonPath = path.join(taskDir, 'task.json')
+      const jsonData = {
+        ...data,
+        id: data.iterationId,
+        updatedAt: data.updatedAt || new Date().toISOString()
+      }
+      
+      fs.writeFileSync(jsonPath, JSON.stringify(jsonData, null, 2), 'utf-8')
+      
+      // 创建 .claude/commands/{iterationId} 目录
+      const claudeDir = path.join(workspace, '.claude')
+      const commandsDir = path.join(claudeDir, 'commands')
+      const iterationDir = path.join(commandsDir, data.iterationId)
+      
+      if (!fs.existsSync(iterationDir)) {
+        fs.mkdirSync(iterationDir, { recursive: true })
+      }
+      
+      // 读取关联的需求和设计内容
+      let userRequirement = ''
+      let userDesignRequest = ''
+      
+      if (data.requirementIterationId) {
+        const requirementPath = path.join(workspace, '.se-claude', data.requirementIterationId, 'specs', 'requirement.json')
+        if (fs.existsSync(requirementPath)) {
+          try {
+            const requirementData = JSON.parse(fs.readFileSync(requirementPath, 'utf-8'))
+            userRequirement = requirementData.userRequirement || ''
+          } catch (err) {
+            console.error('读取需求文件失败:', err)
+          }
+        }
+      }
+      
+      if (data.designIterationId) {
+        const designPath = path.join(workspace, '.se-claude', data.designIterationId, 'specs', 'design.json')
+        if (fs.existsSync(designPath)) {
+          try {
+            const designData = JSON.parse(fs.readFileSync(designPath, 'utf-8'))
+            userDesignRequest = designData.userDesignRequest || ''
+          } catch (err) {
+            console.error('读取设计文件失败:', err)
+          }
+        }
+      }
+      
+      // 使用占位符替换函数生成最终的提示词内容
+      const finalPrompt = replacePlaceholders(data.prompt, {
+        userTaskRequest: data.userTaskRequest || '',
+        userRequirement: userRequirement,
+        userDesignRequest: userDesignRequest,
+        jsonSchema: data.jsonSchema || '',
+        iterationId: data.iterationId
+      })
+      
+      // 保存替换后的提示词到 .claude/commands/{iterationId}/task.md
+      const promptPath = path.join(iterationDir, 'task.md')
+      fs.writeFileSync(promptPath, finalPrompt, 'utf-8')
+      
+      return {
+        success: true,
+        jsonPath,
+        promptPath
+      }
+    } catch (error) {
+      console.error('保存任务失败:', error)
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : '未知错误'
+      }
+    }
+  })
+  
+  // 获取任务列表
+  ipcMain.handle('get-tasks', async () => {
+    try {
+      const workspace = getCurrentWorkspace()
+      if (!workspace) {
+        return []
+      }
+      
+      const seClaudeDir = path.join(workspace, '.se-claude')
+      if (!fs.existsSync(seClaudeDir)) {
+        return []
+      }
+      
+      const tasks: any[] = []
+      
+      // 读取所有迭代目录
+      const dirs = fs.readdirSync(seClaudeDir)
+      for (const dir of dirs) {
+        const dirPath = path.join(seClaudeDir, dir)
+        // 检查是否是目录
+        if (fs.statSync(dirPath).isDirectory()) {
+          const taskJsonPath = path.join(dirPath, 'specs', 'task.json')
+          // 检查 task.json 是否存在
+          if (fs.existsSync(taskJsonPath)) {
+            try {
+              const content = fs.readFileSync(taskJsonPath, 'utf-8')
+              const task = JSON.parse(content)
+              
+              // 检查任务执行状态（是否有输出文件）
+              const taskOutputPath = path.join(workspace, '.design', task.iterationId || dir, 'specs', 'tasks.md')
+              const isExecuted = fs.existsSync(taskOutputPath)
+              
+              tasks.push({
+                ...task,
+                executionStatus: isExecuted ? 'executed' : 'not_executed'
+              })
+            } catch (err) {
+              console.error(`读取任务文件失败: ${taskJsonPath}`, err)
+            }
+          }
+        }
+      }
+      
+      // 按创建时间排序（最新的在前）
+      tasks.sort((a, b) => {
+        const dateA = new Date(a.createdAt).getTime()
+        const dateB = new Date(b.createdAt).getTime()
+        return dateB - dateA
+      })
+      
+      return tasks
+    } catch (error) {
+      console.error('获取任务列表失败:', error)
+      return []
+    }
+  })
+  
+  // 更新任务
+  ipcMain.handle('update-task', async (_, data) => {
+    try {
+      const workspace = getCurrentWorkspace()
+      if (!workspace) {
+        return { success: false, error: '未找到工作空间' }
+      }
+      
+      const taskDir = path.join(workspace, '.se-claude', data.iterationId, 'specs')
+      const jsonPath = path.join(taskDir, 'task.json')
+      
+      // 检查文件是否存在
+      if (!fs.existsSync(jsonPath)) {
+        return { success: false, error: '任务文件不存在' }
+      }
+      
+      // 更新 JSON 数据
+      const jsonData = {
+        ...data,
+        updatedAt: new Date().toISOString()
+      }
+      fs.writeFileSync(jsonPath, JSON.stringify(jsonData, null, 2), 'utf-8')
+      
+      return { success: true }
+    } catch (error) {
+      console.error('更新任务失败:', error)
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : '更新失败'
+      }
+    }
+  })
+  
+  // 删除任务
+  ipcMain.handle('delete-task', async (_, iterationId: string) => {
+    try {
+      const workspace = getCurrentWorkspace()
+      if (!workspace) {
+        return { success: false, error: '未找到工作空间' }
+      }
+      
+      const deletedFiles: string[] = []
+      
+      // 1. 删除 .se-claude/{iterationId}/specs/task.json 文件
+      const taskJsonPath = path.join(workspace, '.se-claude', iterationId, 'specs', 'task.json')
+      
+      if (fs.existsSync(taskJsonPath)) {
+        fs.unlinkSync(taskJsonPath)
+        deletedFiles.push(taskJsonPath)
+        console.log(`删除文件: ${taskJsonPath}`)
+      }
+      
+      // 2. 删除 .claude/commands/{iterationId}/task.md 文件
+      const taskMdPath = path.join(workspace, '.claude', 'commands', iterationId, 'task.md')
+      
+      if (fs.existsSync(taskMdPath)) {
+        fs.unlinkSync(taskMdPath)
+        deletedFiles.push(taskMdPath)
+        console.log(`删除文件: ${taskMdPath}`)
+      }
+      
+      // 3. 删除 .design/{iterationId}/specs/tasks.md 文件（如果存在）
+      const taskOutputPath = path.join(workspace, '.design', iterationId, 'specs', 'tasks.md')
+      
+      if (fs.existsSync(taskOutputPath)) {
+        fs.unlinkSync(taskOutputPath)
+        deletedFiles.push(taskOutputPath)
+        console.log(`删除文件: ${taskOutputPath}`)
+      }
+      
+      console.log(`删除任务 ${iterationId} 成功，共删除 ${deletedFiles.length} 个文件/目录`)
+      
+      return {
+        success: true,
+        deletedFiles
+      }
+    } catch (error) {
+      console.error('删除任务失败:', error)
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : '删除失败'
+      }
+    }
+  })
+  
+  // 检查任务状态
+  ipcMain.handle('check-task-status', async (_, iterationId: string) => {
+    try {
+      const workspace = getCurrentWorkspace()
+      if (!workspace) {
+        return { executed: false, error: '未找到工作空间' }
+      }
+      
+      // 检查 .design/{iterationId}/specs/tasks.md 是否存在
+      const taskOutputPath = path.join(workspace, '.design', iterationId, 'specs', 'tasks.md')
+      
+      if (fs.existsSync(taskOutputPath)) {
+        // 读取文件内容
+        const content = fs.readFileSync(taskOutputPath, 'utf-8')
+        return {
+          executed: true,
+          content: content,
+          filePath: taskOutputPath
+        }
+      } else {
+        return {
+          executed: false,
+          filePath: taskOutputPath
+        }
+      }
+    } catch (error) {
+      console.error('检查任务状态失败:', error)
+      return { executed: false, error: error instanceof Error ? error.message : '检查失败' }
     }
   })
 

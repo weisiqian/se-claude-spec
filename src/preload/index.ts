@@ -57,7 +57,23 @@ const api = {
   getDesigns: () => ipcRenderer.invoke('get-designs'),
   updateDesign: (data: any) => ipcRenderer.invoke('update-design', data),
   deleteDesign: (iterationId: string) => ipcRenderer.invoke('delete-design', iterationId),
-  checkDesignStatus: (iterationId: string) => ipcRenderer.invoke('check-design-status', iterationId)
+  checkDesignStatus: (iterationId: string) => ipcRenderer.invoke('check-design-status', iterationId),
+  
+  // 任务相关 API
+  saveTask: (data: {
+    iterationId: string
+    userTaskRequest: string
+    prompt: string
+    jsonSchema?: string
+    requirementIterationId?: string
+    designIterationId?: string
+    createdAt: string
+    updatedAt?: string
+  }) => ipcRenderer.invoke('save-task', data),
+  getTasks: () => ipcRenderer.invoke('get-tasks'),
+  updateTask: (data: any) => ipcRenderer.invoke('update-task', data),
+  deleteTask: (iterationId: string) => ipcRenderer.invoke('delete-task', iterationId),
+  checkTaskStatus: (iterationId: string) => ipcRenderer.invoke('check-task-status', iterationId)
 }
 
 // Use `contextBridge` APIs to expose Electron APIs to

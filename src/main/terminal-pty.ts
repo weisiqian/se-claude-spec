@@ -56,10 +56,10 @@ export class TerminalManager {
       this.destroyTerminal(id)
     })
 
-    ipcMain.handle('terminal:show-context-menu', (event, menuItems: any[]) => {
+    ipcMain.handle('terminal:show-context-menu', (_, menuItems: any[]) => {
       const menu = new Menu()
       
-      menuItems.forEach((item, index) => {
+      menuItems.forEach((item) => {
         if (item.type === 'separator') {
           menu.append(new MenuItem({ type: 'separator' }))
         } else {

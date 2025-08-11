@@ -22,6 +22,7 @@ const emit = defineEmits<{
   itemSelect: [item: DataItem | null]
   editRequirement: [item: DataItem]
   editDesign: [item: DataItem]
+  editTask: [item: DataItem]
   createDesign: [requirement: DataItem]
   viewRequirement: [iterationId: string]
 }>()
@@ -159,6 +160,32 @@ const loadItems = async () => {
       console.error('加载设计列表失败:', error)
       items.value = []
     }
+  } else if (props.type === 'task') {
+    // 任务管理从文件系统读取
+    try {
+      const tasks = await window.api.getTasks()
+      
+      items.value = tasks.map((task: any) => ({
+        ...task,
+        id: task.iterationId,
+        title: task.taskTitle || `任务 ${task.iterationId}`,
+        description: task.taskDescription?.length > 100 ? 
+          task.taskDescription.substring(0, 100) + '...' : 
+          task.taskDescription,
+        createdAt: new Date(task.createdAt),
+        updatedAt: task.updatedAt ? new Date(task.updatedAt) : undefined,
+        status: task.status || 'pending',
+        priority: task.priority || 'medium',
+        assignee: task.assignee,
+        dueDate: task.dueDate,
+        requirementIterationId: task.requirementIterationId,
+        designIterationId: task.designIterationId,
+        executionStatus: task.executionStatus || 'not_executed'
+      }))
+    } catch (error) {
+      console.error('加载任务列表失败:', error)
+      items.value = []
+    }
   } else {
     // 其他类型仍从 localStorage 读取
     const storageKey = `${props.type}_items`
@@ -199,6 +226,11 @@ const handleEditRequirement = (item: DataItem) => {
 const handleEditDesign = (item: DataItem) => {
   // 编辑设计
   emit('editDesign', item)
+}
+
+const handleEditTask = (item: DataItem) => {
+  // 编辑任务 - 触发任务详情页面的编辑模式
+  emit('editTask', item)
 }
 
 const handleDesign = (item: DataItem) => {
@@ -257,6 +289,25 @@ const confirmDelete = async () => {
       } catch (error) {
         console.error('删除设计出错:', error)
         alert('删除设计时发生错误')
+      }
+    } else if (props.type === 'task' && deleteTarget.value.iterationId) {
+      // 任务类型，调用API删除相关文件
+      try {
+        const result = await window.api.deleteTask(deleteTarget.value.iterationId)
+        if (result.success) {
+          console.log(`成功删除任务 ${deleteTarget.value.iterationId}，删除了 ${result.deletedFiles?.length || 0} 个文件`)
+          // 从列表中移除
+          const index = items.value.findIndex(i => i.id === deleteTarget.value!.id)
+          if (index > -1) {
+            items.value.splice(index, 1)
+          }
+        } else {
+          console.error('删除任务失败:', result.error)
+          alert(`删除任务失败: ${result.error}`)
+        }
+      } catch (error) {
+        console.error('删除任务出错:', error)
+        alert('删除任务时发生错误')
       }
     } else {
       // 其他类型仍从localStorage删除
@@ -471,7 +522,7 @@ if (window.api?.onWorkspaceChanged) {
               </button>
               <button 
                 class="action-btn edit-btn" 
-                @click.stop="type === 'requirement' ? handleEditRequirement(item) : handleEditDesign(item)" 
+                @click.stop="type === 'requirement' ? handleEditRequirement(item) : type === 'design' ? handleEditDesign(item) : handleEditTask(item)" 
                 title="编辑">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>

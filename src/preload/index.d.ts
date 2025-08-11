@@ -105,6 +105,43 @@ declare global {
         filePath?: string
         error?: string
       }>
+      
+      // 任务相关 API
+      saveTask: (data: {
+        iterationId: string
+        userTaskRequest: string
+        prompt: string
+        jsonSchema?: string
+        requirementIterationId?: string
+        designIterationId?: string
+        createdAt: string
+        updatedAt?: string
+      }) => Promise<{
+        success: boolean
+        error?: string
+        jsonPath?: string
+        promptPath?: string
+      }>
+      
+      getTasks: () => Promise<any[]>
+      
+      updateTask: (data: any) => Promise<{
+        success: boolean
+        error?: string
+      }>
+      
+      deleteTask: (iterationId: string) => Promise<{
+        success: boolean
+        error?: string
+        deletedFiles?: string[]
+      }>
+      
+      checkTaskStatus: (iterationId: string) => Promise<{
+        executed: boolean
+        content?: string
+        filePath?: string
+        error?: string
+      }>
     }
   }
 }

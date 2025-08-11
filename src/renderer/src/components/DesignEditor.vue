@@ -140,7 +140,7 @@ const loadRequirementsContent = async () => {
   }
 }
 
-// 加载可用的迭代ID列表
+// 加载可用的迭代ID列表（需求和设计一一对应）
 const loadAvailableIterations = async () => {
   try {
     // 获取所有需求
@@ -151,23 +151,26 @@ const loadAvailableIterations = async () => {
     // 创建设计的迭代ID集合
     const designIterationIds = new Set(designs.map((d: any) => d.iterationId))
     
-    // 构建可用迭代列表，同时检查是否有执行结果（requirements.md文件）
+    // 构建可用迭代列表
+    // 注意：因为需求和设计是一一对应的，所以只显示没有设计的需求
     availableIterations.value = await Promise.all(
-      requirements.map(async (req: any) => {
-        // 检查是否有requirements.md文件
-        const statusResult = await window.api.checkRequirementStatus(req.iterationId)
-        return {
-          id: req.iterationId,
-          title: `迭代 ${req.iterationId}`,
-          hasDesign: designIterationIds.has(req.iterationId),
-          hasRequirementsDoc: statusResult.executed // 是否有需求文档
-        }
-      })
+      requirements
+        .filter((req: any) => !designIterationIds.has(req.iterationId)) // 只显示没有设计的需求
+        .map(async (req: any) => {
+          // 检查是否有requirements.md文件
+          const statusResult = await window.api.checkRequirementStatus(req.iterationId)
+          return {
+            id: req.iterationId,
+            title: `迭代 ${req.iterationId}`,
+            hasDesign: false, // 已经过滤了有设计的，所以这里一定是false
+            hasRequirementsDoc: statusResult.executed // 是否有需求文档
+          }
+        })
     )
     
-    // 如果没有关联需求且没有选中的迭代ID，选择第一个可用的迭代（有需求文档且没有设计）
+    // 如果没有关联需求且没有选中的迭代ID，选择第一个有需求文档的迭代
     if (!props.requirement && !selectedIterationId.value) {
-      const firstAvailable = availableIterations.value.find(iter => iter.hasRequirementsDoc && !iter.hasDesign)
+      const firstAvailable = availableIterations.value.find(iter => iter.hasRequirementsDoc)
       if (firstAvailable) {
         selectedIterationId.value = firstAvailable.id
       }
@@ -350,7 +353,10 @@ const handleSave = async (shouldClose = true) => {
       originalData.value = { ...formData.value }
       
       if (shouldClose) {
-        emit('save', designData)
+        emit('save', {
+        ...designData,
+        id: props.design?.id || iterationId.value
+      } as DesignData)
       }
     } else {
       alert('保存失败: ' + result.error)
@@ -423,11 +429,10 @@ const formatDate = (dateString: string) => {
               v-for="iter in availableIterations" 
               :key="iter.id" 
               :value="iter.id"
-              :disabled="!iter.hasRequirementsDoc || iter.hasDesign"
+              :disabled="!iter.hasRequirementsDoc"
             >
               {{ iter.title }}
               <template v-if="!iter.hasRequirementsDoc"> (需先执行需求)</template>
-              <template v-else-if="iter.hasDesign"> (已有设计)</template>
             </option>
           </select>
         </div>

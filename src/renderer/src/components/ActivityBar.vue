@@ -28,8 +28,11 @@ const activities = computed<ActivityItem[]>(() => [
 const activeId = computed(() => props.activeId || internalActiveId.value)
 
 const handleSelect = (id: string) => {
-  internalActiveId.value = internalActiveId.value === id ? '' : id
-  emit('select', internalActiveId.value)
+  // 如果点击的是当前已激活的项，保持激活状态不变
+  if (internalActiveId.value !== id) {
+    internalActiveId.value = id
+    emit('select', internalActiveId.value)
+  }
 }
 </script>
 

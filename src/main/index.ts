@@ -982,6 +982,207 @@ app.whenReady().then(() => {
     }
   })
 
+  // 获取执行树结构
+  ipcMain.handle('get-execution-tree', async () => {
+    try {
+      const workspace = getCurrentWorkspace()
+      if (!workspace) {
+        return []
+      }
+      
+      const executionTree: any[] = []
+      const seClaudeDir = path.join(workspace, '.se-claude')
+      const designDir = path.join(workspace, '.design')
+      
+      if (!fs.existsSync(seClaudeDir)) {
+        return []
+      }
+      
+      // 读取所有迭代目录
+      const dirs = fs.readdirSync(seClaudeDir)
+      
+      for (const dir of dirs) {
+        const iterationPath = path.join(seClaudeDir, dir)
+        const stat = fs.statSync(iterationPath)
+        
+        if (stat.isDirectory()) {
+          const treeItem: any = {
+            iterationId: dir,
+            iterationName: dir,
+            requirement: null,
+            design: null,
+            tasks: []
+          }
+          
+          // 检查需求文档
+          const requirementJsonPath = path.join(iterationPath, 'specs', 'requirement.json')
+          const requirementMdPath = path.join(designDir, dir, 'specs', 'requirements.md')
+          if (fs.existsSync(requirementJsonPath)) {
+            try {
+              const requirementData = JSON.parse(fs.readFileSync(requirementJsonPath, 'utf-8'))
+              treeItem.requirement = {
+                id: dir,
+                title: requirementData.userRequirement?.substring(0, 50) || '需求文档',
+                executed: fs.existsSync(requirementMdPath)
+              }
+            } catch (e) {
+              console.error('读取需求文档失败:', e)
+            }
+          }
+          
+          // 检查设计文档
+          const designJsonPath = path.join(iterationPath, 'specs', 'design.json')
+          const designMdPath = path.join(designDir, dir, 'specs', 'design.md')
+          if (fs.existsSync(designJsonPath)) {
+            try {
+              const designData = JSON.parse(fs.readFileSync(designJsonPath, 'utf-8'))
+              treeItem.design = {
+                id: dir,
+                title: designData.userDesignRequest?.substring(0, 50) || '设计文档',
+                executed: fs.existsSync(designMdPath)
+              }
+            } catch (e) {
+              console.error('读取设计文档失败:', e)
+            }
+          }
+          
+          // 检查任务文档
+          const taskJsonPath = path.join(iterationPath, 'specs', 'task.json')
+          const tasksMdPath = path.join(designDir, dir, 'specs', 'tasks.md')
+          
+          if (fs.existsSync(tasksMdPath)) {
+            // 如果tasks.md存在，解析任务列表
+            const tasksContent = fs.readFileSync(tasksMdPath, 'utf-8')
+            const parsedTasks = await parseTasks(tasksContent)
+            treeItem.tasks = parsedTasks
+          } else if (fs.existsSync(taskJsonPath)) {
+            // 如果只有task.json，创建单个任务项
+            try {
+              const taskData = JSON.parse(fs.readFileSync(taskJsonPath, 'utf-8'))
+              treeItem.tasks = [{
+                id: '1',
+                title: taskData.userTaskRequest?.substring(0, 50) || '任务',
+                description: taskData.userTaskRequest || '',
+                command: `claude "/${dir}:task"`,
+                status: 'pending'
+              }]
+            } catch (e) {
+              console.error('读取任务文档失败:', e)
+            }
+          }
+          
+          executionTree.push(treeItem)
+        }
+      }
+      
+      // 按创建时间排序
+      executionTree.sort((a, b) => a.iterationId.localeCompare(b.iterationId))
+      
+      return executionTree
+    } catch (error) {
+      console.error('获取执行树失败:', error)
+      return []
+    }
+  })
+
+  // 解析tasks.md文件内容
+  async function parseTasks(content: string) {
+    const tasks: any[] = []
+    const lines = content.split('\n')
+    let currentTask: any = null
+    let taskId = 1
+    
+    for (const line of lines) {
+      // 匹配任务标题 (## 1. 任务名称)
+      const titleMatch = line.match(/^##\s+(\d+)\.\s+(.+)/)
+      if (titleMatch) {
+        if (currentTask) {
+          tasks.push(currentTask)
+        }
+        currentTask = {
+          id: titleMatch[1],
+          title: titleMatch[2].trim(),
+          description: '',
+          command: '',
+          status: 'pending'
+        }
+        taskId = parseInt(titleMatch[1]) + 1
+      }
+      // 匹配有序列表任务 (1. 任务名称)
+      else if (line.match(/^\d+\.\s+/)) {
+        const match = line.match(/^(\d+)\.\s+(.+)/)
+        if (match) {
+          if (currentTask) {
+            tasks.push(currentTask)
+          }
+          currentTask = {
+            id: match[1],
+            title: match[2].trim(),
+            description: '',
+            command: '',
+            status: 'pending'
+          }
+        }
+      }
+      // 匹配无序列表任务 (- 任务名称 或 * 任务名称)
+      else if (line.match(/^[-*]\s+/)) {
+        const match = line.match(/^[-*]\s+(.+)/)
+        if (match) {
+          if (currentTask) {
+            tasks.push(currentTask)
+          }
+          currentTask = {
+            id: taskId.toString(),
+            title: match[1].trim(),
+            description: '',
+            command: '',
+            status: 'pending'
+          }
+          taskId++
+        }
+      }
+      // 匹配命令行 (`claude ...` 或 ```...```)
+      else if (currentTask && line.includes('`')) {
+        const commandMatch = line.match(/`([^`]+)`/)
+        if (commandMatch) {
+          currentTask.command = commandMatch[1]
+        }
+      }
+      // 其他行作为描述
+      else if (currentTask && line.trim() && !line.startsWith('#')) {
+        if (currentTask.description) {
+          currentTask.description += '\n' + line.trim()
+        } else {
+          currentTask.description = line.trim()
+        }
+      }
+    }
+    
+    if (currentTask) {
+      tasks.push(currentTask)
+    }
+    
+    return tasks
+  }
+
+  // 批量执行任务 - 已弃用，改为使用任务终端
+  ipcMain.handle('execute-tasks', async (_, tasks: Array<{ iterationId: string; taskId: string; taskTitle?: string; command?: string }>) => {
+    const results: any[] = []
+    
+    // 注意：现在任务执行通过任务终端完成，这个API保留用于兼容
+    // 实际执行逻辑已移至前端通过task-terminal:create来创建独立终端
+    for (const task of tasks) {
+      results.push({
+        iterationId: task.iterationId,
+        taskId: task.taskId,
+        success: true,
+        message: '任务已通过独立终端执行'
+      })
+    }
+    
+    return results
+  })
+
   // 创建主窗口（默认最大化）
   createWindow()
   

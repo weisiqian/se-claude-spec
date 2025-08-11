@@ -142,6 +142,48 @@ declare global {
         filePath?: string
         error?: string
       }>
+      
+      getExecutionTree: () => Promise<Array<{
+        iterationId: string
+        iterationName: string
+        requirement?: {
+          id: string
+          title: string
+          executed: boolean
+        }
+        design?: {
+          id: string
+          title: string
+          executed: boolean
+        }
+        tasks: Array<{
+          id: string
+          title: string
+          description: string
+          command?: string
+          status: 'pending' | 'executing' | 'success' | 'failed'
+        }>
+      }>>
+      
+      executeTasks: (tasks: Array<{
+        iterationId: string
+        taskId: string
+        command?: string
+      }>) => Promise<Array<{
+        iterationId: string
+        taskId: string
+        success: boolean
+        output?: string
+        error?: string
+      }>>
+    }
+  }
+  
+  electron: {
+    ipcRenderer: {
+      invoke: (channel: string, ...args: any[]) => Promise<any>
+      on: (channel: string, listener: (event: any, ...args: any[]) => void) => void
+      removeAllListeners: (channel: string) => void
     }
   }
 }

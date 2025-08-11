@@ -20,7 +20,7 @@
             @click="handlePrimaryClick(item.key)">
             <el-icon><component :is="item.icon" /></el-icon>
             <span>{{ item.label }}</span>
-            <el-icon class="menu-arrow"><ArrowRight /></el-icon>
+            <el-icon class="menu-arrow" v-if="item.key !== 'execution'"><ArrowRight /></el-icon>
           </div>
         </div>
         
@@ -59,7 +59,8 @@ import {
   Document,
   Brush,
   Tickets,
-  QuestionFilled
+  QuestionFilled,
+  Operation
 } from '@element-plus/icons-vue'
 
 // 子菜单组件
@@ -90,6 +91,7 @@ const menuItems = shallowRef([
   { key: 'requirement', label: '需求', icon: Document },
   { key: 'design', label: '设计', icon: Brush },
   { key: 'task', label: '任务', icon: Tickets },
+  { key: 'execution', label: '执行计划', icon: Operation },
   { key: 'help', label: '帮助', icon: QuestionFilled }
 ])
 
@@ -105,6 +107,14 @@ const getSubmenuComponent = (key: string) => {
 }
 
 const handlePrimaryClick = (menu: string) => {
+  // 如果是执行计划，直接触发打开执行管理页面
+  if (menu === 'execution') {
+    showMenu.value = false
+    activeSubmenu.value = null
+    emit('menu-action', 'execution', 'open-manager')
+    return
+  }
+  
   activeSubmenu.value = menu
   updateSubmenuPosition(menu)
 }
@@ -119,6 +129,7 @@ const updateSubmenuPosition = (menu: string) => {
     'requirement': '需求',
     'design': '设计',
     'task': '任务',
+    'execution': '执行计划',
     'help': '帮助'
   }
   

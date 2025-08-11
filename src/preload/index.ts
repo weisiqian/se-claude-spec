@@ -73,7 +73,9 @@ const api = {
   getTasks: () => ipcRenderer.invoke('get-tasks'),
   updateTask: (data: any) => ipcRenderer.invoke('update-task', data),
   deleteTask: (iterationId: string) => ipcRenderer.invoke('delete-task', iterationId),
-  checkTaskStatus: (iterationId: string) => ipcRenderer.invoke('check-task-status', iterationId)
+  checkTaskStatus: (iterationId: string) => ipcRenderer.invoke('check-task-status', iterationId),
+  getExecutionTree: () => ipcRenderer.invoke('get-execution-tree'),
+  executeTasks: (tasks: Array<{ iterationId: string; taskId: string; command?: string }>) => ipcRenderer.invoke('execute-tasks', tasks)
 }
 
 // Use `contextBridge` APIs to expose Electron APIs to

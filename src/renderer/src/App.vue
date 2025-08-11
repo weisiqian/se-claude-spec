@@ -14,6 +14,7 @@ import DesignEditor from './components/DesignEditor.vue'
 import DesignStatus from './components/DesignStatus.vue'
 import TaskCreator from './components/TaskCreator.vue'
 import TaskDetail from './components/TaskDetail.vue'
+import TaskExecutionManager from './components/TaskExecutionManager.vue'
 
 const projectPath = ref<string | null>(null)
 const showForm = ref(false)
@@ -33,6 +34,7 @@ const showDesignEditor = ref(false)
 const showDesignStatus = ref(false)
 const showTaskCreator = ref(false)
 const showTaskDetail = ref(false)
+const showTaskExecutionManager = ref(false)
 const selectedRequirement = ref<any>(null)
 const selectedDesign = ref<any>(null)
 const selectedTask = ref<any>(null)
@@ -41,7 +43,22 @@ const selectedTask = ref<any>(null)
 provide('isDark', isDark)
 
 const handleMenuAction = (type: string, action: string) => {
-  if (type === 'requirement' && action === 'create') {
+  if (type === 'execution' && action === 'open-manager') {
+    // 打开执行计划管理页面
+    activePanel.value = 'execution'
+    showTaskExecutionManager.value = true
+    showRequirementCreator.value = false
+    showRequirementStatus.value = false
+    showRequirementEditor.value = false
+    showDesignEditor.value = false
+    showDesignStatus.value = false
+    showTaskCreator.value = false
+    showTaskDetail.value = false
+    showForm.value = false
+  } else if (type === 'execution') {
+    // 处理其他执行计划相关操作
+    console.log('执行计划操作:', action)
+  } else if (type === 'requirement' && action === 'create') {
     // 点击新建需求文档，打开需求创建器
     activePanel.value = 'requirement'
     showRequirementCreator.value = true
@@ -49,6 +66,7 @@ const handleMenuAction = (type: string, action: string) => {
     showRequirementEditor.value = false
     showDesignEditor.value = false
     showDesignStatus.value = false
+    showTaskExecutionManager.value = false
     showForm.value = false
   } else if (type === 'design' && action === 'create') {
     // 点击新建设计文档，打开设计编辑器（无关联需求）
@@ -60,6 +78,7 @@ const handleMenuAction = (type: string, action: string) => {
     showRequirementStatus.value = false
     showRequirementEditor.value = false
     showDesignStatus.value = false
+    showTaskExecutionManager.value = false
     showForm.value = false
   } else if (action === 'list') {
     // 点击列表项，显示对应的侧边栏
@@ -70,6 +89,7 @@ const handleMenuAction = (type: string, action: string) => {
     showRequirementEditor.value = false
     showDesignEditor.value = false
     showDesignStatus.value = false
+    showTaskExecutionManager.value = false
   } else {
     // 其他操作（任务的创建等）
     formType.value = type as 'requirement' | 'design' | 'task'
@@ -81,6 +101,7 @@ const handleMenuAction = (type: string, action: string) => {
     showRequirementEditor.value = false
     showDesignEditor.value = false
     showDesignStatus.value = false
+    showTaskExecutionManager.value = false
   }
 }
 
@@ -97,8 +118,22 @@ const handleThemeToggle = () => {
 }
 
 const handleActivitySelect = (id: string) => {
-  activePanel.value = id as 'requirement' | 'design' | 'task' | ''
+  activePanel.value = id as 'requirement' | 'design' | 'task' | 'execution' | ''
   showForm.value = false
+  
+  // 处理执行计划页面
+  if (id === 'execution') {
+    showTaskExecutionManager.value = true
+    showRequirementCreator.value = false
+    showRequirementStatus.value = false
+    showRequirementEditor.value = false
+    showDesignEditor.value = false
+    showDesignStatus.value = false
+    showTaskCreator.value = false
+    showTaskDetail.value = false
+  } else {
+    showTaskExecutionManager.value = false
+  }
 }
 
 const handlePanelItemSelect = (item: any) => {
@@ -464,6 +499,11 @@ onUnmounted(() => {
             @close="showTaskDetail = false; if(selectedTask._startInEditMode) delete selectedTask._startInEditMode"
             @back="showTaskDetail = false; if(selectedTask._startInEditMode) delete selectedTask._startInEditMode"
             @update="handleTaskUpdate"
+            @execute-command="handleExecuteCommand"
+          />
+          <TaskExecutionManager
+            v-else-if="showTaskExecutionManager && activePanel === 'execution'"
+            @close="() => { showTaskExecutionManager = false; activePanel = '' }"
             @execute-command="handleExecuteCommand"
           />
           <SidePanel

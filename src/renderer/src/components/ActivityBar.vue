@@ -22,7 +22,8 @@ const internalActiveId = ref<string>('')
 const activities = computed<ActivityItem[]>(() => [
   { id: 'requirement', icon: 'requirement', label: '需求' },
   { id: 'design', icon: 'design', label: '设计' },
-  { id: 'task', icon: 'task', label: '任务' }
+  { id: 'task', icon: 'task', label: '任务' },
+  { id: 'execution', icon: 'execution', label: '执行计划' }
 ])
 
 const activeId = computed(() => props.activeId || internalActiveId.value)
@@ -59,6 +60,11 @@ const handleSelect = (id: string) => {
           <!-- 任务图标 -->
           <svg v-else-if="activity.icon === 'task'" viewBox="0 0 24 24" fill="currentColor">
             <path d="M19 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.11 0 2-.9 2-2V5c0-1.1-.89-2-2-2zm-9 14l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+          </svg>
+          <!-- 执行计划图标 -->
+          <svg v-else-if="activity.icon === 'execution'" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M8 5v14l11-7z"/>
+            <path d="M3 3v18h3V3zm18 0v18h-3V3z" opacity="0.5"/>
           </svg>
         </div>
         <span v-if="activity.badge" class="activity-badge">{{ activity.badge }}</span>

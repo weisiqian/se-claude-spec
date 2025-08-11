@@ -231,23 +231,28 @@ app.whenReady().then(() => {
         return []
       }
       
-      // 读取所有 JSON 文件
-      const files = fs.readdirSync(seClaudeDir)
       const requirements = []
       
-      for (const file of files) {
-        if (file.endsWith('.json')) {
-          const filePath = path.join(seClaudeDir, file)
-          try {
-            const content = fs.readFileSync(filePath, 'utf-8')
-            const data = JSON.parse(content)
-            requirements.push({
-              ...data,
-              id: data.iterationId,
-              status: 'created'
-            })
-          } catch (err) {
-            console.error(`读取需求文件失败: ${file}`, err)
+      // 读取所有迭代目录
+      const dirs = fs.readdirSync(seClaudeDir)
+      for (const dir of dirs) {
+        const dirPath = path.join(seClaudeDir, dir)
+        // 检查是否是目录
+        if (fs.statSync(dirPath).isDirectory()) {
+          const requirementPath = path.join(dirPath, 'specs', 'requirement.json')
+          // 检查 requirement.json 是否存在
+          if (fs.existsSync(requirementPath)) {
+            try {
+              const content = fs.readFileSync(requirementPath, 'utf-8')
+              const data = JSON.parse(content)
+              requirements.push({
+                ...data,
+                id: data.iterationId || dir,
+                status: 'created'
+              })
+            } catch (err) {
+              console.error(`读取需求文件失败: ${requirementPath}`, err)
+            }
           }
         }
       }
@@ -272,8 +277,8 @@ app.whenReady().then(() => {
         return { success: false, error: '未找到工作空间' }
       }
       
-      const seClaudeDir = path.join(workspace, '.se-claude')
-      const jsonPath = path.join(seClaudeDir, `${data.iterationId}.json`)
+      const requirementDir = path.join(workspace, '.se-claude', data.iterationId, 'specs')
+      const jsonPath = path.join(requirementDir, 'requirement.json')
       
       // 检查文件是否存在
       if (!fs.existsSync(jsonPath)) {
@@ -287,10 +292,6 @@ app.whenReady().then(() => {
       }
       
       fs.writeFileSync(jsonPath, JSON.stringify(updatedData, null, 2))
-      
-      // 如果 prompt 更改了，也更新 prompt 文件
-      const promptPath = path.join(seClaudeDir, `${data.iterationId}.prompt.md`)
-      fs.writeFileSync(promptPath, data.prompt)
       
       return { success: true }
     } catch (error) {
@@ -312,14 +313,14 @@ app.whenReady().then(() => {
       
       const deletedFiles: string[] = []
       
-      // 1. 删除 .se-claude 目录下的文件
-      const seClaudeDir = path.join(workspace, '.se-claude')
-      const jsonFile = path.join(seClaudeDir, `${iterationId}.json`)
+      // 1. 删除 .se-claude/{iterationId} 目录
+      const seClaudeIterationDir = path.join(workspace, '.se-claude', iterationId)
       
-      if (fs.existsSync(jsonFile)) {
-        fs.unlinkSync(jsonFile)
-        deletedFiles.push(jsonFile)
-        console.log(`删除文件: ${jsonFile}`)
+      if (fs.existsSync(seClaudeIterationDir)) {
+        // 递归删除目录
+        fs.rmSync(seClaudeIterationDir, { recursive: true, force: true })
+        deletedFiles.push(seClaudeIterationDir)
+        console.log(`删除目录: ${seClaudeIterationDir}`)
       }
       
       // 2. 删除 .claude/commands/{iterationId} 目录
@@ -334,7 +335,7 @@ app.whenReady().then(() => {
         console.log(`删除目录: ${claudeIterationDir}`)
       }
       
-      // 3. 删除 .design 目录下的相关文件和目录
+      // 3. 删除 .design/{iterationId} 目录
       const designDir = path.join(workspace, '.design')
       const designIterationDir = path.join(designDir, iterationId)
       
@@ -374,13 +375,13 @@ app.whenReady().then(() => {
         return { success: false, error: '未设置工作空间' }
       }
       
-      // 创建 .se-claude 目录
-      const seClaudeDir = path.join(workspace, '.se-claude')
-      if (!fs.existsSync(seClaudeDir)) {
-        fs.mkdirSync(seClaudeDir, { recursive: true })
+      // 创建 .se-claude/{iterationId}/specs 目录
+      const requirementDir = path.join(workspace, '.se-claude', data.iterationId, 'specs')
+      if (!fs.existsSync(requirementDir)) {
+        fs.mkdirSync(requirementDir, { recursive: true })
       }
       
-      // 创建 .claude/commands/迭代ID 目录
+      // 创建 .claude/commands/{iterationId} 目录
       const claudeDir = path.join(workspace, '.claude')
       const commandsDir = path.join(claudeDir, 'commands')
       const iterationDir = path.join(commandsDir, data.iterationId)
@@ -389,8 +390,8 @@ app.whenReady().then(() => {
         fs.mkdirSync(iterationDir, { recursive: true })
       }
       
-      // 保存表单数据到 .se-claude 目录（保存原始提示词，包含占位符）
-      const formDataPath = path.join(seClaudeDir, `${data.iterationId}.json`)
+      // 保存表单数据到 .se-claude/{iterationId}/specs/requirement.json
+      const formDataPath = path.join(requirementDir, 'requirement.json')
       fs.writeFileSync(formDataPath, JSON.stringify(data, null, 2), 'utf-8')
       
       // 使用全局占位符替换函数生成最终的提示词内容
@@ -400,7 +401,7 @@ app.whenReady().then(() => {
         iterationId: data.iterationId
       })
       
-      // 保存替换后的提示词到 .claude/commands/迭代ID/requirement.md
+      // 保存替换后的提示词到 .claude/commands/{iterationId}/requirement.md
       const promptPath = path.join(iterationDir, 'requirement.md')
       fs.writeFileSync(promptPath, finalPrompt, 'utf-8')
       
@@ -435,15 +436,14 @@ app.whenReady().then(() => {
         return { success: false, error: '未设置工作空间' }
       }
       
-      // 创建 .se-claude/designs 目录
-      const seClaudeDir = path.join(workspace, '.se-claude')
-      const designDir = path.join(seClaudeDir, 'designs')
+      // 创建 .se-claude/{iterationId}/specs 目录
+      const designDir = path.join(workspace, '.se-claude', data.iterationId, 'specs')
       if (!fs.existsSync(designDir)) {
         fs.mkdirSync(designDir, { recursive: true })
       }
       
-      // 保存设计JSON数据
-      const jsonPath = path.join(designDir, `${data.iterationId}.json`)
+      // 保存设计JSON数据到 .se-claude/{iterationId}/specs/design.json
+      const jsonPath = path.join(designDir, 'design.json')
       const jsonData = {
         ...data,
         id: data.iterationId,
@@ -452,7 +452,7 @@ app.whenReady().then(() => {
       
       fs.writeFileSync(jsonPath, JSON.stringify(jsonData, null, 2), 'utf-8')
       
-      // 创建 .claude/commands/设计迭代ID 目录
+      // 创建 .claude/commands/{iterationId} 目录
       const claudeDir = path.join(workspace, '.claude')
       const commandsDir = path.join(claudeDir, 'commands')
       const iterationDir = path.join(commandsDir, data.iterationId)
@@ -464,7 +464,7 @@ app.whenReady().then(() => {
       // 读取关联需求的内容（如果有）
       let userRequirement = ''
       if (data.requirementIterationId) {
-        const requirementPath = path.join(workspace, '.se-claude', 'requirements', `${data.requirementIterationId}.json`)
+        const requirementPath = path.join(workspace, '.se-claude', data.requirementIterationId, 'specs', 'requirement.json')
         if (fs.existsSync(requirementPath)) {
           try {
             const requirementData = JSON.parse(fs.readFileSync(requirementPath, 'utf-8'))
@@ -483,7 +483,7 @@ app.whenReady().then(() => {
         iterationId: data.iterationId
       })
       
-      // 保存替换后的提示词到 .claude/commands/设计迭代ID/design.md
+      // 保存替换后的提示词到 .claude/commands/{iterationId}/design.md
       const promptPath = path.join(iterationDir, 'design.md')
       fs.writeFileSync(promptPath, finalPrompt, 'utf-8')
       
@@ -509,24 +509,29 @@ app.whenReady().then(() => {
         return []
       }
       
-      const designDir = path.join(workspace, '.se-claude', 'designs')
-      if (!fs.existsSync(designDir)) {
+      const seClaudeDir = path.join(workspace, '.se-claude')
+      if (!fs.existsSync(seClaudeDir)) {
         return []
       }
       
-      // 读取所有设计JSON文件
-      const files = fs.readdirSync(designDir)
       const designs = []
       
-      for (const file of files) {
-        if (file.endsWith('.json')) {
-          const filePath = path.join(designDir, file)
-          try {
-            const content = fs.readFileSync(filePath, 'utf-8')
-            const design = JSON.parse(content)
-            designs.push(design)
-          } catch (err) {
-            console.error(`读取设计文件失败: ${filePath}`, err)
+      // 读取所有迭代目录
+      const dirs = fs.readdirSync(seClaudeDir)
+      for (const dir of dirs) {
+        const dirPath = path.join(seClaudeDir, dir)
+        // 检查是否是目录
+        if (fs.statSync(dirPath).isDirectory()) {
+          const designPath = path.join(dirPath, 'specs', 'design.json')
+          // 检查 design.json 是否存在
+          if (fs.existsSync(designPath)) {
+            try {
+              const content = fs.readFileSync(designPath, 'utf-8')
+              const design = JSON.parse(content)
+              designs.push(design)
+            } catch (err) {
+              console.error(`读取设计文件失败: ${designPath}`, err)
+            }
           }
         }
       }
@@ -553,8 +558,8 @@ app.whenReady().then(() => {
         return { success: false, error: '未找到工作空间' }
       }
       
-      const designDir = path.join(workspace, '.se-claude', 'designs')
-      const jsonPath = path.join(designDir, `${data.iterationId}.json`)
+      const designDir = path.join(workspace, '.se-claude', data.iterationId, 'specs')
+      const jsonPath = path.join(designDir, 'design.json')
       
       // 检查文件是否存在
       if (!fs.existsSync(jsonPath)) {
@@ -572,7 +577,7 @@ app.whenReady().then(() => {
       // 读取关联需求的内容（如果有）
       let userRequirement = ''
       if (data.requirementIterationId) {
-        const requirementPath = path.join(workspace, '.se-claude', 'requirements', `${data.requirementIterationId}.json`)
+        const requirementPath = path.join(workspace, '.se-claude', data.requirementIterationId, 'specs', 'requirement.json')
         if (fs.existsSync(requirementPath)) {
           try {
             const requirementData = JSON.parse(fs.readFileSync(requirementPath, 'utf-8'))
@@ -613,6 +618,37 @@ app.whenReady().then(() => {
     }
   })
   
+  // 检查设计执行状态
+  ipcMain.handle('check-design-status', async (_, iterationId: string) => {
+    try {
+      const workspace = getCurrentWorkspace()
+      if (!workspace) {
+        return { executed: false }
+      }
+      
+      // 检查 .design/iterationId/specs/design.md 是否存在
+      const designPath = path.join(workspace, '.design', iterationId, 'specs', 'design.md')
+      
+      if (fs.existsSync(designPath)) {
+        // 读取文件内容
+        const content = fs.readFileSync(designPath, 'utf-8')
+        return {
+          executed: true,
+          content: content,
+          filePath: designPath
+        }
+      } else {
+        return {
+          executed: false,
+          filePath: designPath
+        }
+      }
+    } catch (error) {
+      console.error('检查设计状态失败:', error)
+      return { executed: false, error: error instanceof Error ? error.message : '检查失败' }
+    }
+  })
+  
   // 删除设计
   ipcMain.handle('delete-design', async (_, iterationId: string) => {
     try {
@@ -623,28 +659,36 @@ app.whenReady().then(() => {
       
       const deletedFiles: string[] = []
       
-      // 1. 删除 .se-claude/designs 目录下的文件
-      const designDir = path.join(workspace, '.se-claude', 'designs')
-      const jsonFile = path.join(designDir, `${iterationId}.json`)
+      // 1. 删除 .se-claude/{iterationId}/specs/design.json 文件
+      const designJsonPath = path.join(workspace, '.se-claude', iterationId, 'specs', 'design.json')
       
-      if (fs.existsSync(jsonFile)) {
-        fs.unlinkSync(jsonFile)
-        deletedFiles.push(jsonFile)
+      if (fs.existsSync(designJsonPath)) {
+        fs.unlinkSync(designJsonPath)
+        deletedFiles.push(designJsonPath)
+        console.log(`删除文件: ${designJsonPath}`)
       }
       
-      // 2. 删除 .claude/commands/设计迭代ID 目录
-      const commandsDir = path.join(workspace, '.claude', 'commands', iterationId)
-      if (fs.existsSync(commandsDir)) {
-        fs.rmSync(commandsDir, { recursive: true, force: true })
-        deletedFiles.push(commandsDir)
+      // 2. 删除 .claude/commands/{iterationId}/design.md 文件
+      const designMdPath = path.join(workspace, '.claude', 'commands', iterationId, 'design.md')
+      
+      if (fs.existsSync(designMdPath)) {
+        fs.unlinkSync(designMdPath)
+        deletedFiles.push(designMdPath)
+        console.log(`删除文件: ${designMdPath}`)
       }
       
-      // 3. 删除 .design 目录下的设计输出文件（如果存在）
-      const designOutputDir = path.join(workspace, '.design', iterationId)
-      if (fs.existsSync(designOutputDir)) {
-        fs.rmSync(designOutputDir, { recursive: true, force: true })
-        deletedFiles.push(designOutputDir)
+      // 3. 删除 .design/{iterationId}/specs/design.md 文件（如果存在设计输出）
+      const designOutputPath = path.join(workspace, '.design', iterationId, 'specs', 'design.md')
+      
+      if (fs.existsSync(designOutputPath)) {
+        fs.unlinkSync(designOutputPath)
+        deletedFiles.push(designOutputPath)
+        console.log(`删除文件: ${designOutputPath}`)
       }
+      
+      // 不删除目录本身，因为可能还有需求相关的文件
+      
+      console.log(`成功删除设计 ${iterationId}，共删除 ${deletedFiles.length} 个文件`)
       
       return {
         success: true,

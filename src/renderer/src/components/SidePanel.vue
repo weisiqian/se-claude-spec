@@ -21,6 +21,7 @@ const emit = defineEmits<{
   close: []
   itemSelect: [item: DataItem | null]
   editRequirement: [item: DataItem]
+  editDesign: [item: DataItem]
   createDesign: [requirement: DataItem]
   viewRequirement: [iterationId: string]
 }>()
@@ -192,6 +193,11 @@ const handleEdit = (item: DataItem) => {
 const handleEditRequirement = (item: DataItem) => {
   // 编辑需求
   emit('editRequirement', item)
+}
+
+const handleEditDesign = (item: DataItem) => {
+  // 编辑设计
+  emit('editDesign', item)
 }
 
 const handleDesign = (item: DataItem) => {
@@ -462,7 +468,10 @@ if (window.api?.onWorkspaceChanged) {
                   <circle cx="11" cy="11" r="2"/>
                 </svg>
               </button>
-              <button class="action-btn edit-btn" @click.stop="handleEditRequirement(item)" title="编辑">
+              <button 
+                class="action-btn edit-btn" 
+                @click.stop="type === 'requirement' ? handleEditRequirement(item) : handleEditDesign(item)" 
+                title="编辑">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
                   <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
@@ -537,10 +546,13 @@ if (window.api?.onWorkspaceChanged) {
             </div>
             <h3 class="dialog-title">确认删除</h3>
             <p class="dialog-message">
-              确定要删除需求 <strong>"{{ deleteTarget?.title }}"</strong> 吗？
+              确定要删除{{ type === 'requirement' ? '需求' : type === 'design' ? '设计' : '任务' }} <strong>"{{ deleteTarget?.title }}"</strong> 吗？
               <br>
               <span v-if="type === 'requirement'" class="warning-text">
-                将同时删除 .claude、.design、.se-claude 目录下的相关文件
+                将同时删除 .se-claude/迭代ID、.claude/commands/迭代ID、.design/迭代ID 目录
+              </span>
+              <span v-else-if="type === 'design'" class="warning-text">
+                将同时删除 .se-claude/迭代ID/specs/design.json、.claude/commands/迭代ID/design.md、.design/迭代ID/specs/design.md 文件
               </span>
               <br>
               <span class="warning-text">此操作无法撤销</span>

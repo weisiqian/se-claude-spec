@@ -98,6 +98,13 @@ declare global {
         error?: string
         deletedFiles?: string[]
       }>
+      
+      checkDesignStatus: (iterationId: string) => Promise<{
+        executed: boolean
+        content?: string
+        filePath?: string
+        error?: string
+      }>
     }
   }
 }

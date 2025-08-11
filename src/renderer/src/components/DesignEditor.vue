@@ -63,6 +63,9 @@ const isSaving = ref(false)
 // 复制命令相关
 const copySuccessMessage = ref(false)
 
+// 保存下拉菜单
+const showSaveDropdown = ref(false)
+
 // 选择的迭代ID（无关联需求时使用）
 const selectedIterationId = ref('')
 // 可用的迭代ID列表
@@ -318,6 +321,62 @@ const handleCancel = () => {
   }
 }
 
+// 保存设计
+const handleSave = async (shouldClose = true) => {
+  if (!iterationId.value) {
+    alert('请选择迭代ID')
+    return
+  }
+  
+  isSaving.value = true
+  
+  try {
+    const designData = {
+      iterationId: iterationId.value,
+      userDesignRequest: formData.value.userDesignRequest,
+      prompt: formData.value.prompt,
+      jsonSchema: formData.value.jsonSchema,
+      requirementIterationId: props.requirement?.iterationId,
+      createdAt: props.design?.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    }
+    
+    const result = props.design 
+      ? await window.api.updateDesign(designData)
+      : await window.api.saveDesign(designData)
+    
+    if (result.success) {
+      // 更新原始数据
+      originalData.value = { ...formData.value }
+      
+      if (shouldClose) {
+        emit('save', designData)
+      }
+    } else {
+      alert('保存失败: ' + result.error)
+    }
+  } catch (error) {
+    console.error('保存设计失败:', error)
+    alert('保存设计失败')
+  } finally {
+    isSaving.value = false
+    showSaveDropdown.value = false
+  }
+}
+
+// 保存并执行
+const handleSaveAndExecute = async () => {
+  await handleSave(false)
+  if (!isSaving.value && generatedCommand.value) {
+    handleExecuteCommand()
+  }
+}
+
+// 保存并关闭
+const handleSaveAndClose = async () => {
+  await handleSave(true)
+}
+
 // 格式化日期
 const formatDate = (dateString: string) => {
   return new Date(dateString).toLocaleString('zh-CN', {
@@ -477,9 +536,19 @@ const formatDate = (dateString: string) => {
       </transition>
 
       <!-- 操作按钮 -->
-      <div class="action-buttons">
+      <div class="form-actions">
+        <button class="btn btn-secondary" @click="handleReset" title="重置到原始内容">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/>
+            <path d="M21 3v5h-5"/>
+            <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/>
+            <path d="M8 16H3v5"/>
+          </svg>
+          重置
+        </button>
+        
         <button 
-          class="action-btn generate-btn"
+          class="btn btn-secondary generate-btn"
           @click="handleGenerateCommand"
           :disabled="!iterationId || isGenerating || isExecuting"
         >
@@ -488,7 +557,8 @@ const formatDate = (dateString: string) => {
         </button>
         
         <button 
-          class="action-btn execute-btn"
+          v-if="generatedCommand"
+          class="btn btn-secondary execute-btn"
           @click="handleExecuteCommand"
           :disabled="!generatedCommand || isExecuting"
         >
@@ -496,23 +566,47 @@ const formatDate = (dateString: string) => {
           {{ isExecuting ? '执行中...' : '执行命令' }}
         </button>
         
-        <button 
-          class="action-btn reset-btn"
-          @click="handleReset"
-          :disabled="isGenerating || isExecuting"
-        >
-          <span class="btn-icon">↺</span>
-          重置
-        </button>
-        
-        <button 
-          class="action-btn cancel-btn"
-          @click="handleCancel"
-          :disabled="isGenerating || isExecuting"
-        >
-          <span class="btn-icon">✕</span>
-          取消
-        </button>
+        <div class="actions-right">
+          <button class="btn btn-cancel" @click="handleCancel">
+            取消
+          </button>
+          <div class="save-dropdown" :class="{ 'open': showSaveDropdown }">
+            <div class="save-btn-group">
+              <button 
+                class="btn btn-primary save-main-btn" 
+                @click="handleSave()"
+                :disabled="isSaving || !hasUnsavedChanges || !iterationId"
+              >
+                <span v-if="!isSaving">保存更改</span>
+                <span v-else>保存中...</span>
+              </button>
+              <button 
+                class="btn btn-primary save-dropdown-btn"
+                @click="showSaveDropdown = !showSaveDropdown"
+                :disabled="isSaving || !hasUnsavedChanges || !iterationId"
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+              </button>
+            </div>
+            <div v-if="showSaveDropdown" class="save-dropdown-menu">
+              <button class="dropdown-item" @click="handleSaveAndExecute">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M5 3v18l7-6 7 6V3z"/>
+                </svg>
+                <span>保存并执行</span>
+              </button>
+              <button class="dropdown-item" @click="handleSaveAndClose">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M9 11l3 3L22 4"/>
+                  <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
+                </svg>
+                <span>保存并关闭</span>
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -907,76 +1001,104 @@ const formatDate = (dateString: string) => {
 }
 
 
-.action-buttons {
+.form-actions {
   display: flex;
-  gap: 8px;
-  margin-top: 20px;
-  padding-top: 16px;
+  gap: 12px;
+  align-items: center;
+  margin-top: 32px;
+  padding-top: 20px;
   border-top: 1px solid #3e3e42;
 }
 
-.action-btn {
+.actions-right {
+  margin-left: auto;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.save-dropdown {
+  position: relative;
+}
+
+.save-btn-group {
+  display: flex;
+}
+
+.save-main-btn {
+  border-radius: 4px 0 0 4px;
+  border-right: 1px solid rgba(0, 0, 0, 0.2);
+}
+
+.save-dropdown-btn {
+  padding: 8px 10px;
+  border-radius: 0 4px 4px 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  padding: 6px 14px;
-  border: none;
-  font-size: 13px;
-  font-weight: 500;
+}
+
+.save-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  background: #252526;
+  border: 1px solid #3e3e42;
   border-radius: 4px;
+  min-width: 180px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+  z-index: 100;
+}
+
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 12px;
+  background: transparent;
+  border: none;
+  color: #cccccc;
+  font-size: 13px;
+  text-align: left;
   cursor: pointer;
-  transition: all 0.15s ease;
-  white-space: nowrap;
+  transition: background 0.15s ease;
 }
 
-.action-btn:hover:not(:disabled) {
-  transform: translateY(-1px);
+.dropdown-item:hover {
+  background: #2d2d30;
 }
 
-.action-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.generate-btn {
-  background: #0e639c;
-  color: white;
-}
-
-.generate-btn:hover:not(:disabled) {
-  background: #1177bb;
-}
-
-.execute-btn {
-  background: #16825d;
-  color: white;
-}
-
-.execute-btn:hover:not(:disabled) {
-  background: #1a9b6e;
-}
-
-.reset-btn {
-  background: #3e3e42;
-  color: #cccccc;
-}
-
-.reset-btn:hover:not(:disabled) {
-  background: #4e4e52;
-}
-
-.cancel-btn {
-  background: #3e3e42;
-  color: #cccccc;
-}
-
-.cancel-btn:hover:not(:disabled) {
-  background: #4e4e52;
+.dropdown-item svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
 }
 
 .btn-icon {
   font-size: 14px;
+}
+
+.generate-btn.btn-secondary {
+  background: #0e639c;
+  color: white;
+  border-color: #0e639c;
+}
+
+.generate-btn.btn-secondary:hover:not(:disabled) {
+  background: #1177bb;
+  border-color: #1177bb;
+}
+
+.execute-btn.btn-secondary {
+  background: #16825d;
+  color: white;
+  border-color: #16825d;
+}
+
+.execute-btn.btn-secondary:hover:not(:disabled) {
+  background: #1a9b6e;
+  border-color: #1a9b6e;
 }
 
 .btn {

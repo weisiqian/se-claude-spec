@@ -11,6 +11,7 @@ import RequirementCreator from './components/RequirementCreator.vue'
 import RequirementStatus from './components/RequirementStatus.vue'
 import RequirementEditor from './components/RequirementEditor.vue'
 import DesignEditor from './components/DesignEditor.vue'
+import DesignStatus from './components/DesignStatus.vue'
 
 const projectPath = ref<string | null>(null)
 const showForm = ref(false)
@@ -27,6 +28,7 @@ const showRequirementCreator = ref(false)
 const showRequirementStatus = ref(false)
 const showRequirementEditor = ref(false)
 const showDesignEditor = ref(false)
+const showDesignStatus = ref(false)
 const selectedRequirement = ref<any>(null)
 const selectedDesign = ref<any>(null)
 
@@ -41,6 +43,7 @@ const handleMenuAction = (type: string, action: string) => {
     showRequirementStatus.value = false
     showRequirementEditor.value = false
     showDesignEditor.value = false
+    showDesignStatus.value = false
     showForm.value = false
   } else if (type === 'design' && action === 'create') {
     // 点击新建设计文档，打开设计编辑器（无关联需求）
@@ -51,6 +54,7 @@ const handleMenuAction = (type: string, action: string) => {
     showRequirementCreator.value = false
     showRequirementStatus.value = false
     showRequirementEditor.value = false
+    showDesignStatus.value = false
     showForm.value = false
   } else if (action === 'list') {
     // 点击列表项，显示对应的侧边栏
@@ -60,6 +64,7 @@ const handleMenuAction = (type: string, action: string) => {
     showRequirementStatus.value = false
     showRequirementEditor.value = false
     showDesignEditor.value = false
+    showDesignStatus.value = false
   } else {
     // 其他操作（任务的创建等）
     formType.value = type as 'requirement' | 'design' | 'task'
@@ -70,6 +75,7 @@ const handleMenuAction = (type: string, action: string) => {
     showRequirementStatus.value = false
     showRequirementEditor.value = false
     showDesignEditor.value = false
+    showDesignStatus.value = false
   }
 }
 
@@ -99,6 +105,7 @@ const handlePanelItemSelect = (item: any) => {
       showRequirementStatus.value = false
       showRequirementEditor.value = false
       showDesignEditor.value = false
+      showDesignStatus.value = false
     } else if (activePanel.value === 'design') {
       // 如果是设计管理，显示设计编辑器（新建模式，无关联需求）
       selectedRequirement.value = null
@@ -107,6 +114,7 @@ const handlePanelItemSelect = (item: any) => {
       showRequirementCreator.value = false
       showRequirementStatus.value = false
       showRequirementEditor.value = false
+      showDesignStatus.value = false
     } else {
       // 其他类型使用原有的表单页面
       formType.value = activePanel.value as 'requirement' | 'design' | 'task'
@@ -123,11 +131,13 @@ const handlePanelItemSelect = (item: any) => {
       showRequirementCreator.value = false
       showRequirementEditor.value = false
       showDesignEditor.value = false
+      showDesignStatus.value = false
     } else if (activePanel.value === 'design') {
-      // 如果是设计，编辑设计文档
+      // 如果是设计，显示设计状态页面
       selectedDesign.value = item
-      selectedRequirement.value = null // 编辑时不需要关联需求
-      showDesignEditor.value = true
+      selectedRequirement.value = null
+      showDesignStatus.value = true
+      showDesignEditor.value = false
       showRequirementCreator.value = false
       showRequirementStatus.value = false
       showRequirementEditor.value = false
@@ -183,6 +193,7 @@ const handleEditRequirement = (item: any) => {
   showRequirementCreator.value = false
   showRequirementStatus.value = false
   showDesignEditor.value = false
+  showDesignStatus.value = false
 }
 
 const handleCreateDesign = (requirement: any) => {
@@ -193,8 +204,21 @@ const handleCreateDesign = (requirement: any) => {
   showRequirementCreator.value = false
   showRequirementStatus.value = false
   showRequirementEditor.value = false
+  showDesignStatus.value = false
   // 保持 activePanel 为 'requirement'，这样侧边栏区域仍然显示
   // activePanel.value 用于控制整个侧边栏区域的显示
+}
+
+const handleEditDesign = (item?: any) => {
+  // 从设计状态页面或列表进入编辑
+  if (item) {
+    selectedDesign.value = item
+  }
+  showDesignEditor.value = true
+  showDesignStatus.value = false
+  showRequirementCreator.value = false
+  showRequirementStatus.value = false
+  showRequirementEditor.value = false
 }
 
 const handleSaveRequirement = (shouldClose = true) => {
@@ -230,6 +254,7 @@ const handleViewRequirement = async (iterationId: string) => {
       showRequirementCreator.value = false
       showRequirementEditor.value = false
       showDesignEditor.value = false
+      showDesignStatus.value = false
     }
   } catch (error) {
     console.error('查看需求失败:', error)
@@ -343,6 +368,14 @@ onUnmounted(() => {
             @save="handleSaveDesign"
             @execute-command="handleExecuteCommand"
           />
+          <DesignStatus
+            v-else-if="showDesignStatus && activePanel === 'design' && selectedDesign"
+            :design="selectedDesign"
+            @close="showDesignStatus = false"
+            @back="showDesignStatus = false"
+            @edit="handleEditDesign"
+            @execute-command="handleExecuteCommand"
+          />
           <SidePanel
             v-else
             :type="activePanel"
@@ -350,6 +383,7 @@ onUnmounted(() => {
             @close="activePanel = ''"
             @item-select="handlePanelItemSelect"
             @edit-requirement="handleEditRequirement"
+            @edit-design="handleEditDesign"
             @create-design="handleCreateDesign"
             @view-requirement="handleViewRequirement"
           />

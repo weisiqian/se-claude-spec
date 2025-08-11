@@ -56,7 +56,8 @@ const api = {
   }) => ipcRenderer.invoke('save-design', data),
   getDesigns: () => ipcRenderer.invoke('get-designs'),
   updateDesign: (data: any) => ipcRenderer.invoke('update-design', data),
-  deleteDesign: (iterationId: string) => ipcRenderer.invoke('delete-design', iterationId)
+  deleteDesign: (iterationId: string) => ipcRenderer.invoke('delete-design', iterationId),
+  checkDesignStatus: (iterationId: string) => ipcRenderer.invoke('check-design-status', iterationId)
 }
 
 // Use `contextBridge` APIs to expose Electron APIs to

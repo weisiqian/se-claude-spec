@@ -241,6 +241,19 @@ const handleCreateDesign = (requirement: any) => {
   // activePanel.value 用于控制整个侧边栏区域的显示
 }
 
+const handleCreateTask = (designIterationId: string) => {
+  // 从设计管理页创建任务，默认选择这个迭代
+  activePanel.value = 'task'  // 设置activePanel为task
+  selectedTask.value = { designIterationId }
+  showTaskCreator.value = true
+  showTaskDetail.value = false
+  showRequirementCreator.value = false
+  showRequirementStatus.value = false
+  showRequirementEditor.value = false
+  showDesignEditor.value = false
+  showDesignStatus.value = false
+}
+
 const handleEditDesign = (item?: any) => {
   // 从设计状态页面或列表进入编辑
   if (item) {
@@ -438,6 +451,7 @@ onUnmounted(() => {
           <TaskCreator
             v-else-if="showTaskCreator && activePanel === 'task'"
             :project-path="projectPath"
+            :design-id="selectedTask?.designIterationId"
             @close="() => { showTaskCreator = false; activePanel = '' }"
             @back="showTaskCreator = false"
             @submit="handleTaskSubmit"
@@ -463,6 +477,7 @@ onUnmounted(() => {
             @edit-task="handleEditTask"
             @view-task="handleViewTask"
             @create-design="handleCreateDesign"
+            @create-task="handleCreateTask"
             @view-requirement="handleViewRequirement"
           />
         </template>

@@ -26,6 +26,7 @@ const emit = defineEmits<{
   viewTask: [item: DataItem]
   createDesign: [requirement: DataItem]
   viewRequirement: [iterationId: string]
+  createTask: [designIterationId: string]
 }>()
 
 const showForm = ref(false)
@@ -247,6 +248,13 @@ const handleViewRequirement = (item: DataItem) => {
   // 查看设计关联的需求
   if (item.iterationId) {
     emit('viewRequirement', item.iterationId)
+  }
+}
+
+const handleCreateTask = (item: DataItem) => {
+  // 为设计创建任务
+  if (item.iterationId) {
+    emit('createTask', item.iterationId)
   }
 }
 
@@ -523,6 +531,16 @@ if (window.api?.onWorkspaceChanged) {
                   <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/>
                   <path d="M2 2l7.586 7.586"/>
                   <circle cx="11" cy="11" r="2"/>
+                </svg>
+              </button>
+              <button 
+                v-if="type === 'design'" 
+                class="action-btn task-btn" 
+                @click.stop="handleCreateTask(item)" 
+                title="新建任务">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                  <polyline points="22 4 12 14.01 9 11.01"></polyline>
                 </svg>
               </button>
               <button 
@@ -946,6 +964,12 @@ if (window.api?.onWorkspaceChanged) {
   background: rgba(156, 39, 176, 0.1);
   border-color: rgba(156, 39, 176, 0.3);
   color: #9c27b0;
+}
+
+.task-btn:hover {
+  background: rgba(76, 175, 80, 0.1);
+  border-color: rgba(76, 175, 80, 0.3);
+  color: #4caf50;
 }
 
 .edit-btn:hover {

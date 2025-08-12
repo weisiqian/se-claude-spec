@@ -3,7 +3,7 @@
     <!-- 预览模式 -->
     <div v-if="showPreviewMode && !isMaximized" 
          class="preview-mode-container" 
-         :style="{ height: currentHeight + 'px' }"
+         :style="{ height: typeof currentHeight === 'string' ? currentHeight : currentHeight + 'px' }"
          @contextmenu.prevent="handlePreviewContextMenu">
       <div class="markdown-preview-wrapper" v-html="renderedMarkdown"></div>
     </div>
@@ -211,12 +211,12 @@
     <!-- 正常编辑器容器 -->
     <div 
       class="monaco-editor-container" 
-      :style="{ height: currentHeight + 'px' }"
+      :style="{ height: typeof currentHeight === 'string' ? currentHeight : currentHeight + 'px' }"
       ref="containerRef"
       v-show="!isMaximized && !showPreviewMode"
     >
       <!-- 工具栏 -->
-      <div class="editor-toolbar">
+      <div class="editor-toolbar" v-if="enableMaximize">
         <button 
           class="toolbar-btn maximize-btn"
           @click="toggleMaximize"
@@ -240,9 +240,9 @@
       </div>
     </div>
     
-    <!-- 拖动手柄（最大化时隐藏） -->
+    <!-- 拖动手柄（最大化时隐藏，且仅在非百分比高度时显示） -->
     <div 
-      v-if="!isMaximized"
+      v-if="!isMaximized && typeof currentHeight !== 'string'"
       class="resize-handle"
       @mousedown="startResize"
       title="拖动调整高度"
@@ -353,8 +353,9 @@ const placeholderSubmenuStyle = ref({
 const editorId = `monaco-editor-${Math.random().toString(36).substr(2, 9)}`
 
 // 高度管理
-const currentHeight = ref<number>(
-  typeof props.height === 'number' ? props.height : parseInt(props.height)
+const currentHeight = ref<number | string>(
+  props.height === '100%' ? '100%' : 
+  (typeof props.height === 'number' ? props.height : parseInt(props.height))
 )
 
 // 拖动相关
@@ -779,9 +780,12 @@ const handleEscKey = (e: KeyboardEvent) => {
 const startResize = (e: MouseEvent) => {
   if (isMaximized.value) return
   
+  // 只有当不是百分比高度时才允许拖动调整
+  if (typeof currentHeight.value === 'string') return
+  
   isResizing.value = true
   startY.value = e.pageY
-  startHeight.value = currentHeight.value
+  startHeight.value = currentHeight.value as number
   
   // 添加全局事件监听
   document.addEventListener('mousemove', handleResize)
@@ -796,6 +800,9 @@ const startResize = (e: MouseEvent) => {
 // 处理拖动
 const handleResize = (e: MouseEvent) => {
   if (!isResizing.value || isMaximized.value) return
+  
+  // 只有当不是百分比高度时才允许拖动调整
+  if (typeof currentHeight.value === 'string') return
   
   const deltaY = e.pageY - startY.value
   let newHeight = startHeight.value + deltaY
@@ -1069,8 +1076,12 @@ watch(() => props.modelValue, (newValue) => {
 
 // 监听 height prop 变化
 watch(() => props.height, (newHeight) => {
-  const height = typeof newHeight === 'number' ? newHeight : parseInt(newHeight)
-  currentHeight.value = Math.max(props.minHeight, Math.min(props.maxHeight, height))
+  if (newHeight === '100%') {
+    currentHeight.value = '100%'
+  } else {
+    const height = typeof newHeight === 'number' ? newHeight : parseInt(newHeight)
+    currentHeight.value = Math.max(props.minHeight, Math.min(props.maxHeight, height))
+  }
   if (editorInstance) {
     editorInstance.layout()
   }
@@ -1182,8 +1193,13 @@ defineExpose({
       }
     }
   },
-  setHeight: (height: number) => {
-    currentHeight.value = Math.max(props.minHeight, Math.min(props.maxHeight, height))
+  setHeight: (height: number | string) => {
+    if (height === '100%') {
+      currentHeight.value = '100%'
+    } else {
+      const numHeight = typeof height === 'number' ? height : parseInt(height as string)
+      currentHeight.value = Math.max(props.minHeight, Math.min(props.maxHeight, numHeight))
+    }
     if (editorInstance) {
       editorInstance.layout()
     }
@@ -1245,6 +1261,8 @@ defineExpose({
   overflow: hidden;
   background: var(--wt-bg-tertiary);
   transition: all 0.15s;
+  display: flex;
+  flex-direction: column;
 }
 
 .monaco-editor-container:hover {
@@ -1298,6 +1316,7 @@ defineExpose({
 .editor-instance {
   width: 100%;
   height: 100%;
+  flex: 1;
 }
 
 .monaco-placeholder-overlay {

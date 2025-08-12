@@ -1085,6 +1085,174 @@ app.whenReady().then(() => {
     }
   })
 
+  // 获取目录树结构
+  ipcMain.handle('get-directory-tree', async (_, dirPath: string) => {
+    try {
+      const getDirectoryTree = (currentPath: string, level = 0): any => {
+        // 限制递归深度，避免性能问题
+        if (level > 10) return null
+        
+        const stats = fs.statSync(currentPath)
+        const name = path.basename(currentPath)
+        
+        // 只忽略一些大目录以提高性能
+        if (name === 'node_modules' || name === 'dist' || name === 'out' || name === '.git/objects') {
+          return null
+        }
+        
+        const node: any = {
+          name,
+          path: currentPath,
+          type: stats.isDirectory() ? 'directory' : 'file',
+          size: stats.size,
+          modified: stats.mtime.toISOString()
+        }
+        
+        if (stats.isDirectory()) {
+          try {
+            const children = fs.readdirSync(currentPath)
+              .map(child => getDirectoryTree(path.join(currentPath, child), level + 1))
+              .filter(child => child !== null)
+              .sort((a, b) => {
+                // 文件夹排在前面
+                if (a.type === 'directory' && b.type === 'file') return -1
+                if (a.type === 'file' && b.type === 'directory') return 1
+                // 同类型按名称排序
+                return a.name.localeCompare(b.name)
+              })
+            
+            node.children = children
+          } catch (error) {
+            console.error(`无法读取目录 ${currentPath}:`, error)
+            node.children = []
+          }
+        }
+        
+        return node
+      }
+      
+      return getDirectoryTree(dirPath)
+    } catch (error) {
+      console.error('获取目录树失败:', error)
+      throw error
+    }
+  })
+  
+  // 读取文件内容
+  ipcMain.handle('read-file', async (_, filePath: string) => {
+    try {
+      // 检查文件大小
+      const stats = fs.statSync(filePath)
+      
+      // 如果文件太大（> 10MB），返回提示
+      if (stats.size > 10 * 1024 * 1024) {
+        return `文件太大 (${(stats.size / 1024 / 1024).toFixed(2)} MB)，无法在编辑器中显示`
+      }
+      
+      // 尝试读取为文本
+      const content = fs.readFileSync(filePath, 'utf-8')
+      return content
+    } catch (error: any) {
+      // 如果不是文本文件，返回错误信息
+      if (error.code === 'EISDIR') {
+        throw new Error('这是一个目录，不是文件')
+      } else if (error.toString().includes('Invalid')) {
+        return '这是一个二进制文件，无法显示文本内容'
+      }
+      throw error
+    }
+  })
+  
+  // 在文件管理器中显示文件
+  ipcMain.handle('show-item-in-folder', async (_, filePath: string) => {
+    shell.showItemInFolder(filePath)
+  })
+  
+  // 创建文件
+  ipcMain.handle('create-file', async (_, parentPath: string, fileName: string) => {
+    try {
+      const filePath = path.join(parentPath, fileName)
+      
+      // 检查文件是否已存在
+      if (fs.existsSync(filePath)) {
+        throw new Error(`文件 "${fileName}" 已存在`)
+      }
+      
+      // 创建空文件
+      fs.writeFileSync(filePath, '', 'utf-8')
+      return { success: true, path: filePath }
+    } catch (error: any) {
+      console.error('创建文件失败:', error)
+      throw new Error(error.message || '创建文件失败')
+    }
+  })
+  
+  // 创建文件夹
+  ipcMain.handle('create-directory', async (_, parentPath: string, folderName: string) => {
+    try {
+      const folderPath = path.join(parentPath, folderName)
+      
+      // 检查文件夹是否已存在
+      if (fs.existsSync(folderPath)) {
+        throw new Error(`文件夹 "${folderName}" 已存在`)
+      }
+      
+      // 创建文件夹
+      fs.mkdirSync(folderPath, { recursive: true })
+      return { success: true, path: folderPath }
+    } catch (error: any) {
+      console.error('创建文件夹失败:', error)
+      throw new Error(error.message || '创建文件夹失败')
+    }
+  })
+  
+  // 重命名文件或文件夹
+  ipcMain.handle('rename-item', async (_, oldPath: string, newName: string) => {
+    try {
+      const dir = path.dirname(oldPath)
+      const newPath = path.join(dir, newName)
+      
+      // 检查新名称是否已存在
+      if (fs.existsSync(newPath)) {
+        throw new Error(`"${newName}" 已存在`)
+      }
+      
+      // 执行重命名
+      fs.renameSync(oldPath, newPath)
+      return { success: true, path: newPath }
+    } catch (error: any) {
+      console.error('重命名失败:', error)
+      throw new Error(error.message || '重命名失败')
+    }
+  })
+  
+  // 删除文件或文件夹
+  ipcMain.handle('delete-item', async (_, itemPath: string) => {
+    try {
+      const stats = fs.statSync(itemPath)
+      
+      if (stats.isDirectory()) {
+        // 递归删除文件夹
+        fs.rmSync(itemPath, { recursive: true, force: true })
+      } else {
+        // 删除文件
+        fs.unlinkSync(itemPath)
+      }
+      
+      return { success: true }
+    } catch (error: any) {
+      console.error('删除失败:', error)
+      throw new Error(error.message || '删除失败')
+    }
+  })
+  
+  // 复制文件路径到剪贴板
+  ipcMain.handle('copy-path', async (_, filePath: string) => {
+    const { clipboard } = require('electron')
+    clipboard.writeText(filePath)
+    return { success: true }
+  })
+
   // 解析tasks.md文件内容
   async function parseTasks(content: string) {
     const tasks: any[] = []

@@ -176,14 +176,43 @@ declare global {
         output?: string
         error?: string
       }>>
-    }
-  }
-  
-  electron: {
-    ipcRenderer: {
-      invoke: (channel: string, ...args: any[]) => Promise<any>
-      on: (channel: string, listener: (event: any, ...args: any[]) => void) => void
-      removeAllListeners: (channel: string) => void
+      
+      // 文件系统相关 API
+      getDirectoryTree: (dirPath: string) => Promise<{
+        name: string
+        path: string
+        type: 'file' | 'directory'
+        children?: any[]
+        size?: number
+        modified?: string
+      }>
+      
+      readFile: (filePath: string) => Promise<string>
+      
+      showItemInFolder: (filePath: string) => Promise<void>
+      
+      createFile: (parentPath: string, fileName: string) => Promise<{
+        success: boolean
+        path?: string
+      }>
+      
+      createDirectory: (parentPath: string, folderName: string) => Promise<{
+        success: boolean
+        path?: string
+      }>
+      
+      renameItem: (oldPath: string, newName: string) => Promise<{
+        success: boolean
+        path?: string
+      }>
+      
+      deleteItem: (itemPath: string) => Promise<{
+        success: boolean
+      }>
+      
+      copyPath: (filePath: string) => Promise<{
+        success: boolean
+      }>
     }
   }
 }

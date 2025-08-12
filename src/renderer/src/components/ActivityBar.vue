@@ -20,6 +20,7 @@ const emit = defineEmits<{
 const internalActiveId = ref<string>('')
 
 const activities = computed<ActivityItem[]>(() => [
+  { id: 'files', icon: 'files', label: '文件' },
   { id: 'requirement', icon: 'requirement', label: '需求' },
   { id: 'design', icon: 'design', label: '设计' },
   { id: 'task', icon: 'task', label: '任务' },
@@ -49,8 +50,12 @@ const handleSelect = (id: string) => {
         :title="activity.label"
       >
         <div class="activity-icon">
+          <!-- 文件图标 -->
+          <svg v-if="activity.icon === 'files'" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M10 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2h-8l-2-2z"/>
+          </svg>
           <!-- 需求图标 -->
-          <svg v-if="activity.icon === 'requirement'" viewBox="0 0 24 24" fill="currentColor">
+          <svg v-else-if="activity.icon === 'requirement'" viewBox="0 0 24 24" fill="currentColor">
             <path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V9h14v10zM5 7V5h14v2H5zm2 4h10v2H7zm0 4h7v2H7z"/>
           </svg>
           <!-- 设计图标 -->

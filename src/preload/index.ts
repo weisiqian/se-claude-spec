@@ -75,7 +75,17 @@ const api = {
   deleteTask: (iterationId: string) => ipcRenderer.invoke('delete-task', iterationId),
   checkTaskStatus: (iterationId: string) => ipcRenderer.invoke('check-task-status', iterationId),
   getExecutionTree: () => ipcRenderer.invoke('get-execution-tree'),
-  executeTasks: (tasks: Array<{ iterationId: string; taskId: string; command?: string }>) => ipcRenderer.invoke('execute-tasks', tasks)
+  executeTasks: (tasks: Array<{ iterationId: string; taskId: string; command?: string }>) => ipcRenderer.invoke('execute-tasks', tasks),
+  
+  // 文件系统相关 API
+  getDirectoryTree: (dirPath: string) => ipcRenderer.invoke('get-directory-tree', dirPath),
+  readFile: (filePath: string) => ipcRenderer.invoke('read-file', filePath),
+  showItemInFolder: (filePath: string) => ipcRenderer.invoke('show-item-in-folder', filePath),
+  createFile: (parentPath: string, fileName: string) => ipcRenderer.invoke('create-file', parentPath, fileName),
+  createDirectory: (parentPath: string, folderName: string) => ipcRenderer.invoke('create-directory', parentPath, folderName),
+  renameItem: (oldPath: string, newName: string) => ipcRenderer.invoke('rename-item', oldPath, newName),
+  deleteItem: (itemPath: string) => ipcRenderer.invoke('delete-item', itemPath),
+  copyPath: (filePath: string) => ipcRenderer.invoke('copy-path', filePath)
 }
 
 // Use `contextBridge` APIs to expose Electron APIs to

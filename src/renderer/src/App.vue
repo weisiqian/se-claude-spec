@@ -16,6 +16,8 @@ import TaskCreator from './components/TaskCreator.vue'
 import TaskDetail from './components/TaskDetail.vue'
 import TaskExecutionManager from './components/TaskExecutionManager.vue'
 import TerminalPanel from './components/TerminalPanel.vue'
+import FileExplorer from './components/FileExplorer.vue'
+import FileExplorerLayout from './components/FileExplorerLayout.vue'
 
 const projectPath = ref<string | null>(null)
 const showForm = ref(false)
@@ -23,7 +25,7 @@ const formType = ref<'requirement' | 'design' | 'task'>('requirement')
 const formAction = ref<'create' | 'update' | 'execute'>('create')
 const isDark = ref(false)
 const appMode = ref<'terminal' | 'spc'>('terminal')
-const activePanel = ref<'requirement' | 'design' | 'task' | ''>('')
+const activePanel = ref<'files' | 'requirement' | 'design' | 'task' | 'execution' | ''>('')
 const terminalRef = ref<any>(null)
 const terminalPanelRef = ref<any>(null)
 const terminals = ref<Array<{ id: string; label?: string }>>([])
@@ -41,6 +43,8 @@ const showTaskExecutionManager = ref(false)
 const selectedRequirement = ref<any>(null)
 const selectedDesign = ref<any>(null)
 const selectedTask = ref<any>(null)
+const selectedFile = ref<string | null>(null)
+const showFileExplorer = ref(false)
 
 // 提供主题状态给子组件
 provide('isDark', isDark)
@@ -144,8 +148,9 @@ const handleModeSwitch = (mode: 'terminal' | 'spc') => {
     showTaskDetail.value = false
     showTaskExecutionManager.value = false
   } else if (mode === 'spc') {
-    // 在SPC模式下，默认显示需求管理
-    activePanel.value = 'requirement'
+    // 在SPC模式下，默认显示文件管理器
+    activePanel.value = 'files'
+    showFileExplorer.value = true
     showForm.value = false
     showRequirementCreator.value = false
     showRequirementStatus.value = false
@@ -159,11 +164,24 @@ const handleModeSwitch = (mode: 'terminal' | 'spc') => {
 }
 
 const handleActivitySelect = (id: string) => {
-  activePanel.value = id as 'requirement' | 'design' | 'task' | 'execution' | ''
+  activePanel.value = id as 'files' | 'requirement' | 'design' | 'task' | 'execution' | ''
   showForm.value = false
   
+  // 处理文件管理器
+  if (id === 'files') {
+    showFileExplorer.value = true
+    showTaskExecutionManager.value = false
+    showRequirementCreator.value = false
+    showRequirementStatus.value = false
+    showRequirementEditor.value = false
+    showDesignEditor.value = false
+    showDesignStatus.value = false
+    showTaskCreator.value = false
+    showTaskDetail.value = false
+  }
   // 处理执行计划页面
-  if (id === 'execution') {
+  else if (id === 'execution') {
+    showFileExplorer.value = false
     showTaskExecutionManager.value = true
     showRequirementCreator.value = false
     showRequirementStatus.value = false
@@ -173,8 +191,14 @@ const handleActivitySelect = (id: string) => {
     showTaskCreator.value = false
     showTaskDetail.value = false
   } else {
+    showFileExplorer.value = false
     showTaskExecutionManager.value = false
   }
+}
+
+// 处理文件选择
+const handleFileSelect = (filePath: string) => {
+  selectedFile.value = filePath
 }
 
 const handlePanelItemSelect = (item: any) => {
@@ -464,9 +488,10 @@ onMounted(async () => {
   const savedMode = localStorage.getItem('appMode')
   if (savedMode === 'spc' || savedMode === 'terminal') {
     appMode.value = savedMode
-    // 如果是SPC模式，默认显示需求管理
+    // 如果是SPC模式，默认显示文件管理器
     if (savedMode === 'spc') {
-      activePanel.value = 'requirement'
+      activePanel.value = 'files'
+      showFileExplorer.value = true
     }
   }
   
@@ -525,6 +550,11 @@ onUnmounted(() => {
           />
         </template>
         <template #sidePanel>
+          <!-- 文件管理器 -->
+          <FileExplorer
+            v-if="showFileExplorer && activePanel === 'files'"
+            @file-select="handleFileSelect"
+          />
           <RequirementCreator
             v-if="showRequirementCreator && activePanel === 'requirement'"
             :project-path="projectPath"
@@ -605,7 +635,16 @@ onUnmounted(() => {
           />
         </template>
         <template #terminal>
-          <TerminalPanel 
+          <!-- 文件管理器激活时显示文件查看布局 -->
+          <FileExplorerLayout
+            v-if="activePanel === 'files'"
+            :selected-file="selectedFile"
+            :project-path="projectPath"
+            :is-dark="isDark"
+          />
+          <!-- 其他模式显示终端面板 -->
+          <TerminalPanel
+            v-else 
             ref="terminalPanelRef" 
             :project-path="projectPath" 
             :is-dark="isDark"

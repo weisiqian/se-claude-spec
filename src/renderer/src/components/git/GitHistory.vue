@@ -3,7 +3,8 @@ import { ref, computed, onMounted, provide } from 'vue'
 import { useGitStore } from '../../stores/gitStore'
 import GitGraph from './GitGraph.vue'
 import GitDiffViewer from './GitDiffViewer.vue'
-import ResizableHorizontalLayout from '../ResizableHorizontalLayout.vue'
+import ResizablePanel from '../ResizablePanel.vue'
+import ResizableVerticalLayout from '../ResizableVerticalLayout.vue'
 
 const gitStore = useGitStore()
 const isLoading = ref(false)
@@ -15,6 +16,7 @@ const fileDiff = ref<string>('')
 const isLoadingDiff = ref(false)
 const showDiff = ref(false)
 const showFileList = ref(false)
+const showBottomPanel = ref(false)
 
 // 提供选中的提交给其他组件
 provide('selectedCommit', selectedCommit)
@@ -86,10 +88,13 @@ const formatHash = (hash: string) => {
 // 选择提交
 const selectCommit = async (commit: any) => {
   if (selectedCommit.value?.hash === commit.hash) {
-    // 如果点击已选中的提交，切换文件列表显示
-    showFileList.value = !showFileList.value
-    if (!showFileList.value) {
+    // 如果点击已选中的提交，切换底部面板显示
+    showBottomPanel.value = !showBottomPanel.value
+    if (!showBottomPanel.value) {
+      showFileList.value = false
       showDiff.value = false
+    } else {
+      showFileList.value = true
     }
     return
   }
@@ -98,6 +103,7 @@ const selectCommit = async (commit: any) => {
   selectedFile.value = ''
   fileDiff.value = ''
   showFileList.value = true
+  showBottomPanel.value = true
   showDiff.value = false
   
   // 加载提交的文件列表
@@ -211,16 +217,14 @@ onMounted(() => {
 
 <template>
   <div class="git-history-container">
-    <!-- 使用三栏水平布局 -->
-    <ResizableHorizontalLayout
-      :initial-left-width="35"
-      :initial-middle-width="25"
-      :min-left-width="20"
-      :min-middle-width="15"
-      :min-right-width="20"
+    <!-- 使用垂直布局 -->
+    <ResizableVerticalLayout
+      :initial-top-height="60"
+      :min-top-height="30"
+      :max-top-height="80"
     >
-      <!-- 左栏：Git历史记录 -->
-      <template #left>
+      <!-- 上部分：Git历史记录 -->
+      <template #top>
         <div class="git-history">
           <!-- 工具栏 -->
           <div class="history-toolbar">
@@ -312,84 +316,97 @@ onMounted(() => {
         </div>
       </template>
       
-      <!-- 中栏：文件列表 -->
-      <template #middle>
-        <div class="file-list-section" v-if="showFileList && selectedCommit">
-          <!-- 文件列表头部 -->
-          <div class="file-list-header">
-            <span class="commit-message-title">{{ selectedCommit.message }}</span>
-            <div class="file-list-actions">
-              <span class="file-count">{{ commitFiles.length }} 个文件</span>
-              <button class="view-all-button" @click="viewFullDiff" title="查看完整diff">
-                全部
-              </button>
-            </div>
-          </div>
-          
-          <!-- 文件列表内容 -->
-          <div class="file-list-container">
-            <div v-if="isLoadingFiles" class="loading-files">
-              <svg class="loading-icon rotating" viewBox="0 0 16 16" fill="currentColor">
-                <path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zM8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0z"/>
-                <path d="M8 1a7 7 0 0 1 0 14" opacity="0.3"/>
-              </svg>
-              <span>加载文件...</span>
-            </div>
-            <div v-else class="file-list">
-              <div 
-                v-for="file in commitFiles" 
-                :key="file.path" 
-                class="file-item"
-                :class="{ selected: selectedFile === file.path }"
-                @click="selectFile(file.path)"
-              >
-                <span class="file-status" :style="{ color: getFileStatusColor(file.status) }">
-                  {{ getFileStatusIcon(file.status) }}
-                </span>
-                <span class="file-path">{{ file.path }}</span>
-                <div class="file-stats">
-                  <span v-if="file.additions > 0" class="additions">+{{ file.additions }}</span>
-                  <span v-if="file.deletions > 0" class="deletions">-{{ file.deletions }}</span>
+      <!-- 下部分：文件列表和Diff -->
+      <template #bottom>
+        <div v-if="showBottomPanel" class="bottom-panel">
+          <ResizablePanel
+            :initial-side-width="600"
+            :min-side-width="400"
+            :max-side-width="900"
+            storage-key="git-history-panel-width"
+            :divider-width="4"
+          >
+            <!-- 主栏：文件列表 -->
+            <template #main>
+              <div class="file-list-section">
+                <!-- 文件列表头部 -->
+                <div class="file-list-header">
+                  <span class="commit-message-title">{{ selectedCommit?.message }}</span>
+                  <div class="file-list-actions">
+                    <span class="file-count">{{ commitFiles.length }} 个文件</span>
+                    <button class="view-all-button" @click="viewFullDiff" title="查看完整diff">
+                      全部
+                    </button>
+                  </div>
+                </div>
+                
+                <!-- 文件列表内容 -->
+                <div class="file-list-container">
+                  <div v-if="isLoadingFiles" class="loading-files">
+                    <svg class="loading-icon rotating" viewBox="0 0 16 16" fill="currentColor">
+                      <path d="M8 1a7 7 0 1 0 0 14A7 7 0 0 0 8 1zM8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0z"/>
+                      <path d="M8 1a7 7 0 0 1 0 14" opacity="0.3"/>
+                    </svg>
+                    <span>加载文件...</span>
+                  </div>
+                  <div v-else class="file-list">
+                    <div 
+                      v-for="file in commitFiles" 
+                      :key="file.path" 
+                      class="file-item"
+                      :class="{ selected: selectedFile === file.path }"
+                      @click="selectFile(file.path)"
+                    >
+                      <span class="file-status" :style="{ color: getFileStatusColor(file.status) }">
+                        {{ getFileStatusIcon(file.status) }}
+                      </span>
+                      <span class="file-path">{{ file.path }}</span>
+                      <div class="file-stats">
+                        <span v-if="file.additions > 0" class="additions">+{{ file.additions }}</span>
+                        <span v-if="file.deletions > 0" class="deletions">-{{ file.deletions }}</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
-          </div>
+            </template>
+            
+            <!-- 侧栏：Diff内容 -->
+            <template #side>
+              <div class="diff-section" v-if="showDiff">
+                <div class="diff-header">
+                  <span v-if="selectedFile" class="diff-file-path">{{ selectedFile }}</span>
+                  <span v-else class="diff-file-path">全部更改</span>
+                </div>
+                <div class="diff-content">
+                  <GitDiffViewer 
+                    :diff="fileDiff" 
+                    :file-path="selectedFile"
+                    :loading="isLoadingDiff"
+                  />
+                </div>
+              </div>
+              
+              <!-- 未选中文件时的提示 -->
+              <div v-else class="no-diff">
+                <svg class="no-diff-icon" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M13 7h-2v4H7v2h4v4h2v-4h4v-2h-4V7zm-1-5C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/>
+                </svg>
+                <p>选择一个文件查看更改</p>
+              </div>
+            </template>
+          </ResizablePanel>
         </div>
         
         <!-- 未选中提交时的提示 -->
-        <div v-else class="no-selection">
+        <div v-else class="no-selection-bottom">
           <svg class="no-selection-icon" viewBox="0 0 24 24" fill="currentColor">
             <path d="M9 11H7v2h2v-2zm4 0h-2v2h2v-2zm4 0h-2v2h2v-2zm2-7h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11z"/>
           </svg>
           <p>选择一个提交查看文件更改</p>
         </div>
       </template>
-      
-      <!-- 右栏：Diff内容 -->
-      <template #right>
-        <div class="diff-section" v-if="showDiff">
-          <div class="diff-header">
-            <span v-if="selectedFile" class="diff-file-path">{{ selectedFile }}</span>
-            <span v-else class="diff-file-path">全部更改</span>
-          </div>
-          <div class="diff-content">
-            <GitDiffViewer 
-              :diff="fileDiff" 
-              :file-path="selectedFile"
-              :loading="isLoadingDiff"
-            />
-          </div>
-        </div>
-        
-        <!-- 未选中文件时的提示 -->
-        <div v-else class="no-diff">
-          <svg class="no-diff-icon" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M13 7h-2v4H7v2h4v4h2v-4h4v-2h-4V7zm-1-5C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/>
-          </svg>
-          <p>选择一个文件查看更改</p>
-        </div>
-      </template>
-    </ResizableHorizontalLayout>
+    </ResizableVerticalLayout>
   </div>
 </template>
 
@@ -406,7 +423,6 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   background: #181818;
-  border-right: 1px solid #2d2d30;
 }
 
 .history-toolbar {
@@ -618,13 +634,51 @@ onMounted(() => {
   white-space: nowrap;
 }
 
+/* 底部面板 */
+.bottom-panel {
+  height: 100%;
+  background: #1e1e1e;
+}
+
+/* 覆盖 ResizablePanel 的样式 */
+.bottom-panel :deep(.resizable-panel-container) {
+  background: #1e1e1e;
+}
+
+.bottom-panel :deep(.main-content) {
+  background: #1e1e1e;
+  border-radius: 0;
+}
+
+.bottom-panel :deep(.side-panel) {
+  background: #1e1e1e;
+  border-radius: 0;
+}
+
+.bottom-panel :deep(.resize-handle) {
+  width: 4px;
+  background-color: #2d2d30;
+}
+
+.bottom-panel :deep(.resize-handle:hover) {
+  background-color: #3e3e42;
+}
+
+.bottom-panel :deep(.resize-handle.resizing) {
+  background-color: #007acc;
+}
+
+.bottom-panel :deep(.resize-line) {
+  display: none;
+}
+
 /* 文件列表部分 */
 .file-list-section {
+  width: 100%;
   height: 100%;
   display: flex;
   flex-direction: column;
   background: #1e1e1e;
-  border-right: 1px solid #2d2d30;
 }
 
 .file-list-header {
@@ -775,8 +829,9 @@ onMounted(() => {
 }
 
 /* 未选中提示 */
-.no-selection,
+.no-selection-bottom,
 .no-diff {
+  width: 100%;
   height: 100%;
   display: flex;
   flex-direction: column;
@@ -787,10 +842,6 @@ onMounted(() => {
   background: #1e1e1e;
 }
 
-.no-selection {
-  border-right: 1px solid #2d2d30;
-}
-
 .no-selection-icon,
 .no-diff-icon {
   width: 48px;
@@ -799,7 +850,7 @@ onMounted(() => {
   margin-bottom: 16px;
 }
 
-.no-selection p,
+.no-selection-bottom p,
 .no-diff p {
   font-size: 13px;
   color: #969696;

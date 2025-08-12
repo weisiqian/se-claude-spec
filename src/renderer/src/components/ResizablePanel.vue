@@ -7,6 +7,7 @@
       class="resize-handle" 
       @mousedown="startResize"
       :class="{ 'resizing': isResizing }"
+      :style="{ width: `${dividerWidth}px` }"
     >
       <div class="resize-line"></div>
     </div>
@@ -31,6 +32,14 @@ const props = defineProps({
   maxSideWidth: {
     type: Number,
     default: 800
+  },
+  storageKey: {
+    type: String,
+    default: 'terminal-panel-width'
+  },
+  dividerWidth: {
+    type: Number,
+    default: 6
   }
 })
 
@@ -40,7 +49,7 @@ const startX = ref(0)
 const startWidth = ref(0)
 
 const sidePanelWidth = computed(() => `${sidePanelPixelWidth.value}px`)
-const mainWidth = computed(() => `calc(100% - ${sidePanelPixelWidth.value}px - 5px)`)
+const mainWidth = computed(() => `calc(100% - ${sidePanelPixelWidth.value}px - ${props.dividerWidth}px)`)
 
 const startResize = (e: MouseEvent) => {
   isResizing.value = true
@@ -78,12 +87,12 @@ const stopResize = () => {
   document.body.style.cursor = ''
   
   // 保存宽度到 localStorage
-  localStorage.setItem('terminal-panel-width', String(sidePanelPixelWidth.value))
+  localStorage.setItem(props.storageKey, String(sidePanelPixelWidth.value))
 }
 
 onMounted(() => {
   // 从 localStorage 恢复宽度
-  const savedWidth = localStorage.getItem('terminal-panel-width')
+  const savedWidth = localStorage.getItem(props.storageKey)
   if (savedWidth) {
     const width = parseInt(savedWidth)
     if (width >= props.minSideWidth && width <= props.maxSideWidth) {

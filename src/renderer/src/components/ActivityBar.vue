@@ -21,6 +21,7 @@ const internalActiveId = ref<string>('')
 
 const activities = computed<ActivityItem[]>(() => [
   { id: 'files', icon: 'files', label: '文件' },
+  { id: 'git', icon: 'git', label: '源代码管理' },
   { id: 'requirement', icon: 'requirement', label: '需求' },
   { id: 'design', icon: 'design', label: '设计' },
   { id: 'task', icon: 'task', label: '任务' },
@@ -53,6 +54,10 @@ const handleSelect = (id: string) => {
           <!-- 文件图标 -->
           <svg v-if="activity.icon === 'files'" viewBox="0 0 24 24" fill="currentColor">
             <path d="M10 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2h-8l-2-2z"/>
+          </svg>
+          <!-- Git图标 - 经典的分支图标 -->
+          <svg v-else-if="activity.icon === 'git'" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M6 3a3 3 0 0 0-3 3c0 1.28.81 2.38 1.94 2.81-.06.46-.09.93-.09 1.4v5.58c0 .46.03.93.09 1.4A3.002 3.002 0 0 0 6 23a3 3 0 0 0 1.06-5.81c.06-.47.09-.94.09-1.4V10c0-1.11.89-2 2-2h6a4 4 0 0 1 4 4v3.79c0 .46.03.93.09 1.4A3.002 3.002 0 0 0 18 23a3 3 0 0 0 0-6c-.46 0-.93.03-1.4.09.06-.47.09-.94.09-1.4V12a6 6 0 0 0-6-6H9c-.46 0-.93-.03-1.4-.09A3.002 3.002 0 0 0 6 3zm0 2a1 1 0 1 1 0 2 1 1 0 0 1 0-2zm0 14a1 1 0 1 1 0 2 1 1 0 0 1 0-2zm12 0a1 1 0 1 1 0 2 1 1 0 0 1 0-2z"/>
           </svg>
           <!-- 需求图标 -->
           <svg v-else-if="activity.icon === 'requirement'" viewBox="0 0 24 24" fill="currentColor">

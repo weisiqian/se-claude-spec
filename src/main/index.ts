@@ -13,6 +13,7 @@ import {
   cleanupRecentDirectories 
 } from './workspaceManager'
 import { replacePlaceholders } from './placeholderReplacer'
+import { gitService } from './services/gitService'
 
 let terminalManager: TerminalManager
 let mainWindow: BrowserWindow | null = null
@@ -48,6 +49,16 @@ function createWindow(): void {
     // 初始化终端管理器并设置主窗口
     if (terminalManager && mainWindow) {
       terminalManager.setMainWindow(mainWindow)
+    }
+    
+    // 初始化Git服务并设置主窗口
+    if (gitService && mainWindow) {
+      gitService.setMainWindow(mainWindow)
+      // 如果有当前工作空间，初始化Git
+      const workspace = getCurrentWorkspace()
+      if (workspace) {
+        gitService.initialize(workspace)
+      }
     }
   })
 
@@ -181,9 +192,15 @@ app.whenReady().then(() => {
   })
   
   // 切换工作空间
-  ipcMain.handle('switch-workspace', (_, dirPath: string) => {
+  ipcMain.handle('switch-workspace', async (_, dirPath: string) => {
     setCurrentWorkspace(dirPath)
     mainWindow?.webContents.send('workspace-changed', dirPath)
+    
+    // 重新初始化Git服务
+    if (gitService) {
+      await gitService.initialize(dirPath)
+    }
+    
     return dirPath
   })
   
@@ -1363,6 +1380,142 @@ app.whenReady().then(() => {
     }
     
     return results
+  })
+
+  // Git相关IPC处理程序
+  ipcMain.handle('git:initialize', async (_, workspace: string) => {
+    return await gitService.initialize(workspace)
+  })
+
+  ipcMain.handle('git:getStatus', async () => {
+    return await gitService.getStatus()
+  })
+
+  ipcMain.handle('git:stage', async (_, files: string[]) => {
+    return await gitService.stage(files)
+  })
+
+  ipcMain.handle('git:unstage', async (_, files: string[]) => {
+    return await gitService.unstage(files)
+  })
+
+  ipcMain.handle('git:stageAll', async () => {
+    return await gitService.stageAll()
+  })
+
+  ipcMain.handle('git:unstageAll', async () => {
+    return await gitService.unstageAll()
+  })
+
+  ipcMain.handle('git:commit', async (_, message: string) => {
+    return await gitService.commit(message)
+  })
+
+  ipcMain.handle('git:push', async (_, remote?: string, branch?: string) => {
+    return await gitService.push(remote, branch)
+  })
+
+  ipcMain.handle('git:pull', async (_, remote?: string, branch?: string) => {
+    return await gitService.pull(remote, branch)
+  })
+
+  ipcMain.handle('git:fetch', async (_, remote?: string) => {
+    return await gitService.fetch(remote)
+  })
+
+  ipcMain.handle('git:getBranches', async () => {
+    return await gitService.getBranches()
+  })
+
+  ipcMain.handle('git:createBranch', async (_, name: string) => {
+    return await gitService.createBranch(name)
+  })
+
+  ipcMain.handle('git:switchBranch', async (_, name: string) => {
+    return await gitService.switchBranch(name)
+  })
+
+  ipcMain.handle('git:deleteBranch', async (_, name: string, force?: boolean) => {
+    return await gitService.deleteBranch(name, force)
+  })
+
+  ipcMain.handle('git:merge', async (_, branch: string) => {
+    return await gitService.merge(branch)
+  })
+
+  ipcMain.handle('git:getLog', async (_, limit?: number) => {
+    return await gitService.getLog(limit)
+  })
+
+  ipcMain.handle('git:getLogWithGraph', async (_, limit?: number) => {
+    return await gitService.getLogWithGraph(limit)
+  })
+
+  ipcMain.handle('git:getAllBranches', async () => {
+    return await gitService.getAllBranches()
+  })
+
+  ipcMain.handle('git:getFileHistory', async (_, file: string, limit?: number) => {
+    return await gitService.getFileHistory(file, limit)
+  })
+  ipcMain.handle('git:getCommitFiles', async (_, hash: string) => {
+    return await gitService.getCommitFiles(hash)
+  })
+
+  ipcMain.handle('git:getCommitDiff', async (_, hash: string, filePath?: string) => {
+    return await gitService.getCommitDiff(hash, filePath)
+  })
+
+  ipcMain.handle('git:getDiff', async (_, file?: string) => {
+    return await gitService.getDiff(file)
+  })
+
+  ipcMain.handle('git:getStagedDiff', async (_, file?: string) => {
+    return await gitService.getStagedDiff(file)
+  })
+
+  ipcMain.handle('git:getRemotes', async () => {
+    return await gitService.getRemotes()
+  })
+
+  ipcMain.handle('git:addRemote', async (_, name: string, url: string) => {
+    return await gitService.addRemote(name, url)
+  })
+
+  ipcMain.handle('git:removeRemote', async (_, name: string) => {
+    return await gitService.removeRemote(name)
+  })
+
+  ipcMain.handle('git:discardChanges', async (_, files: string[]) => {
+    return await gitService.discardChanges(files)
+  })
+
+  ipcMain.handle('git:discardAllChanges', async () => {
+    return await gitService.discardAllChanges()
+  })
+
+  ipcMain.handle('git:stash', async (_, message?: string) => {
+    return await gitService.stash(message)
+  })
+
+  ipcMain.handle('git:stashPop', async () => {
+    return await gitService.stashPop()
+  })
+
+  ipcMain.handle('git:getStashList', async () => {
+    return await gitService.getStashList()
+  })
+
+  ipcMain.handle('git:clone', async (_, url: string, directory: string) => {
+    return await gitService.clone(url, directory)
+  })
+
+  ipcMain.handle('git:init', async (_, directory: string) => {
+    return await gitService.init(directory)
+  })
+
+  ipcMain.handle('git:getWorkspace', async () => {
+    return getCurrentWorkspace()
   })
 
   // 创建主窗口（默认最大化）

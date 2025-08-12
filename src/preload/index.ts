@@ -86,7 +86,48 @@ const api = {
   renameItem: (oldPath: string, newName: string) => ipcRenderer.invoke('rename-item', oldPath, newName),
   deleteItem: (itemPath: string) => ipcRenderer.invoke('delete-item', itemPath),
   copyPath: (filePath: string) => ipcRenderer.invoke('copy-path', filePath),
-  writeFile: (filePath: string, content: string) => ipcRenderer.invoke('write-file', filePath, content)
+  writeFile: (filePath: string, content: string) => ipcRenderer.invoke('write-file', filePath, content),
+  
+  // Git相关 API
+  git: {
+    initialize: (workspace: string) => ipcRenderer.invoke('git:initialize', workspace),
+    getStatus: () => ipcRenderer.invoke('git:getStatus'),
+    stage: (files: string[]) => ipcRenderer.invoke('git:stage', files),
+    unstage: (files: string[]) => ipcRenderer.invoke('git:unstage', files),
+    stageAll: () => ipcRenderer.invoke('git:stageAll'),
+    unstageAll: () => ipcRenderer.invoke('git:unstageAll'),
+    commit: (message: string) => ipcRenderer.invoke('git:commit', message),
+    push: (remote?: string, branch?: string) => ipcRenderer.invoke('git:push', remote, branch),
+    pull: (remote?: string, branch?: string) => ipcRenderer.invoke('git:pull', remote, branch),
+    fetch: (remote?: string) => ipcRenderer.invoke('git:fetch', remote),
+    getBranches: () => ipcRenderer.invoke('git:getBranches'),
+    createBranch: (name: string) => ipcRenderer.invoke('git:createBranch', name),
+    switchBranch: (name: string) => ipcRenderer.invoke('git:switchBranch', name),
+    deleteBranch: (name: string, force?: boolean) => ipcRenderer.invoke('git:deleteBranch', name, force),
+    merge: (branch: string) => ipcRenderer.invoke('git:merge', branch),
+    getLog: (limit?: number) => ipcRenderer.invoke('git:getLog', limit),
+    getLogWithGraph: (limit?: number) => ipcRenderer.invoke('git:getLogWithGraph', limit),
+    getAllBranches: () => ipcRenderer.invoke('git:getAllBranches'),
+    getFileHistory: (file: string, limit?: number) => ipcRenderer.invoke('git:getFileHistory', file, limit),
+    getCommitFiles: (hash: string) => ipcRenderer.invoke('git:getCommitFiles', hash),
+    getCommitDiff: (hash: string, filePath?: string) => ipcRenderer.invoke('git:getCommitDiff', hash, filePath),
+    getDiff: (file?: string) => ipcRenderer.invoke('git:getDiff', file),
+    getStagedDiff: (file?: string) => ipcRenderer.invoke('git:getStagedDiff', file),
+    getRemotes: () => ipcRenderer.invoke('git:getRemotes'),
+    addRemote: (name: string, url: string) => ipcRenderer.invoke('git:addRemote', name, url),
+    removeRemote: (name: string) => ipcRenderer.invoke('git:removeRemote', name),
+    discardChanges: (files: string[]) => ipcRenderer.invoke('git:discardChanges', files),
+    discardAllChanges: () => ipcRenderer.invoke('git:discardAllChanges'),
+    stash: (message?: string) => ipcRenderer.invoke('git:stash', message),
+    stashPop: () => ipcRenderer.invoke('git:stashPop'),
+    getStashList: () => ipcRenderer.invoke('git:getStashList'),
+    clone: (url: string, directory: string) => ipcRenderer.invoke('git:clone', url, directory),
+    init: (directory: string) => ipcRenderer.invoke('git:init', directory),
+    getWorkspace: () => ipcRenderer.invoke('git:getWorkspace'),
+    onStatusChanged: (callback: (status: any) => void) => {
+      ipcRenderer.on('git-status-changed', (_, status) => callback(status))
+    }
+  }
 }
 
 // Use `contextBridge` APIs to expose Electron APIs to

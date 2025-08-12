@@ -1,0 +1,28 @@
+/* Git组件深色主题配色 */
+:root {
+  /* 背景色 */
+  --git-bg-primary: #1e1e1e;
+  --git-bg-secondary: #252526;
+  --git-bg-tertiary: #2d2d30;
+  --git-bg-header: #1a1a1a;
+  
+  /* 文字颜色 */
+  --git-text-primary: #cccccc;
+  --git-text-secondary: #969696;
+  --git-text-tertiary: #767676;
+  
+  /* 边框颜色 */
+  --git-border-primary: #3e3e42;
+  --git-border-secondary: #464647;
+  
+  /* 交互效果 */
+  --git-hover-bg: rgba(255, 255, 255, 0.05);
+  --git-hover-bg-light: rgba(255, 255, 255, 0.04);
+  
+  /* 功能色 */
+  --git-primary: #007acc;
+  --git-primary-hover: #005a9e;
+  --git-success: #73c991;
+  --git-warning: #e2c08d;
+  --git-danger: #f14c4c;
+}

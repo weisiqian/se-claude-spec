@@ -48,47 +48,34 @@
     <div class="tabs-actions">
       <!-- Markdown 预览按钮（只在 Markdown 文件时显示） -->
       <template v-if="isMarkdownFile">
+        <!-- 分屏预览按钮 -->
         <button 
           class="action-btn"
           :class="{ active: viewMode === 'split' }"
           @click="emit('change-view-mode', viewMode === 'split' ? 'editor' : 'split')"
-          :title="viewMode === 'split' ? '关闭预览 (Ctrl+K V)' : '打开预览 (Ctrl+K V)'"
+          :title="viewMode === 'split' ? '关闭分屏预览' : '分屏预览'"
         >
-          <svg v-if="viewMode !== 'split'" width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-            <!-- 预览图标 -->
-            <path d="M1.5 4a.5.5 0 100-1 .5.5 0 000 1zM3 3.5a.5.5 0 01.5-.5h11a.5.5 0 010 1h-11a.5.5 0 01-.5-.5zm0 3a.5.5 0 01.5-.5h11a.5.5 0 010 1h-11a.5.5 0 01-.5-.5zm0 3a.5.5 0 01.5-.5h11a.5.5 0 010 1h-11a.5.5 0 01-.5-.5zm0 3a.5.5 0 01.5-.5h11a.5.5 0 010 1h-11a.5.5 0 01-.5-.5zM1.5 7a.5.5 0 100-1 .5.5 0 000 1zm0 3a.5.5 0 100-1 .5.5 0 000 1zm0 3a.5.5 0 100-1 .5.5 0 000 1z"/>
-          </svg>
-          <svg v-else width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <!-- 分屏图标 -->
-            <path d="M0 3a2 2 0 012-2h12a2 2 0 012 2v10a2 2 0 01-2 2H2a2 2 0 01-2-2V3zm8.5 1v10H14a.5.5 0 00.5-.5V3a.5.5 0 00-.5-.5H8.5zm-1 0H2a.5.5 0 00-.5.5v10a.5.5 0 00.5.5h5.5V4z"/>
+            <rect x="3" y="3" width="8" height="18" rx="1"/>
+            <rect x="13" y="3" width="8" height="18" rx="1"/>
           </svg>
         </button>
-        <div class="action-separator"></div>
+        
+        <!-- 新标签预览按钮 -->
+        <button 
+          class="action-btn"
+          @click="emit('open-preview-tab')"
+          title="在新标签中预览"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <!-- 新标签图标 -->
+            <path d="M9 13h6m-3-3v6"/>
+            <path d="M5 7h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V9a2 2 0 012-2z"/>
+            <path d="M5 7V5a2 2 0 012-2h10a2 2 0 012 2v2"/>
+          </svg>
+        </button>
       </template>
-      
-      <!-- 显示所有打开的编辑器 -->
-      <button 
-        class="action-btn" 
-        @click="showOpenEditors" 
-        title="显示所有打开的编辑器"
-      >
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-          <path d="M1.5 3.5v2h13v-2h-13zm0 5v2h13v-2h-13zm0 5v2h13v-2h-13z"/>
-        </svg>
-      </button>
-      
-      <!-- 更多操作 -->
-      <button 
-        class="action-btn" 
-        @click="showMoreActions" 
-        title="更多操作..."
-      >
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-          <circle cx="8" cy="8" r="1.5"/>
-          <circle cx="8" cy="3.5" r="1.5"/>
-          <circle cx="8" cy="12.5" r="1.5"/>
-        </svg>
-      </button>
     </div>
   </div>
   
@@ -132,6 +119,7 @@ const emit = defineEmits<{
   'show-in-explorer': [path: string]
   'change-view-mode': [mode: 'editor' | 'split' | 'preview']
   'convert-preview-tab': [path: string]
+  'open-preview-tab': []
 }>()
 
 const tabsContainer = ref<HTMLElement>()
@@ -177,17 +165,6 @@ const handleWheel = (e: WheelEvent) => {
   }
 }
 
-// 显示所有打开的编辑器
-const showOpenEditors = () => {
-  // TODO: 实现显示所有打开编辑器的下拉列表
-  console.log('Show open editors')
-}
-
-// 显示更多操作菜单
-const showMoreActions = () => {
-  // TODO: 实现更多操作菜单
-  console.log('Show more actions')
-}
 
 // 显示右键菜单
 const showContextMenu = (e: MouseEvent, tab: FileTab) => {
@@ -578,13 +555,6 @@ watch(() => props.activeTab, async () => {
   opacity: 0.8;
 }
 
-/* 分隔符样式 */
-.action-separator {
-  width: 1px;
-  height: 16px;
-  background: var(--wt-border);
-  margin: 0 4px;
-}
 
 /* 激活的按钮样式 */
 .action-btn.active {

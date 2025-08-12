@@ -327,6 +327,7 @@ const emit = defineEmits<{
   'maximize': [isMaximized: boolean]
   'contextmenu': [event: { x: number, y: number, position: any }]
   'preview': []
+  'scroll': [percentage: number]
 }>()
 
 const editorContainer = ref<HTMLElement>()
@@ -472,6 +473,16 @@ const createMaximizedEditor = () => {
     e.event.preventDefault()
     e.event.stopPropagation()
     showCustomContextMenu(e.event.posx, e.event.posy)
+  })
+  
+  // 监听滚动事件
+  maximizedEditorInstance.onDidScrollChange((e) => {
+    const scrollTop = maximizedEditorInstance.getScrollTop()
+    const scrollHeight = maximizedEditorInstance.getScrollHeight()
+    const editorHeight = maximizedEditorInstance.getLayoutInfo().height
+    const maxScroll = Math.max(0, scrollHeight - editorHeight)
+    const percentage = maxScroll > 0 ? scrollTop / maxScroll : 0
+    emit('scroll', percentage)
   })
   
   // 聚焦最大化编辑器
@@ -1051,6 +1062,16 @@ onMounted(async () => {
       
       // 显示自定义右键菜单
       showCustomContextMenu(e.event.posx, e.event.posy)
+    })
+
+    // 监听滚动事件
+    editorInstance.onDidScrollChange((e) => {
+      const scrollTop = editorInstance.getScrollTop()
+      const scrollHeight = editorInstance.getScrollHeight()
+      const editorHeight = editorInstance.getLayoutInfo().height
+      const maxScroll = Math.max(0, scrollHeight - editorHeight)
+      const percentage = maxScroll > 0 ? scrollTop / maxScroll : 0
+      emit('scroll', percentage)
     })
 
     // 初始化 placeholder 可见性

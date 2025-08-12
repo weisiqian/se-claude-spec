@@ -14,6 +14,7 @@
       @close-to-right="closeToRight"
       @change-view-mode="viewMode = $event"
       @convert-preview-tab="convertPreviewToNormal"
+      @open-preview-tab="openPreviewInNewTab"
     />
     
     
@@ -24,7 +25,7 @@
         <MonacoEditor
           v-model="fileContent"
           :language="language"
-          :read-only="false"
+          :read-only="isPreviewTab"
           :height="'100%'"
           :minimap="true"
           :line-numbers="'on'"
@@ -37,8 +38,8 @@
       </div>
       
       <!-- 分屏模式 -->
-      <div v-else-if="viewMode === 'split'" class="split-view">
-        <div class="split-panel editor-panel">
+      <div v-else-if="viewMode === 'split'" class="split-view" ref="splitContainer">
+        <div class="split-panel editor-panel" :style="{ width: leftPanelWidth + '%' }">
           <MonacoEditor
             v-model="fileContent"
             :language="language"
@@ -53,8 +54,12 @@
             @scroll="handleEditorScroll"
           />
         </div>
-        <div class="split-divider"></div>
-        <div class="split-panel preview-panel">
+        <div 
+          class="split-divider" 
+          @mousedown="startResize"
+          :class="{ 'resizing': isResizing }"
+        ></div>
+        <div class="split-panel preview-panel" :style="{ width: (100 - leftPanelWidth) + '%' }">
           <MarkdownPreview
             :content="fileContent"
             :sync-scroll="true"
@@ -88,7 +93,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import MonacoEditor from './MonacoEditor.vue'
 import FileTabs from './FileTabs.vue'
 import MarkdownPreview from './MarkdownPreview.vue'
@@ -101,17 +106,40 @@ const props = defineProps<{
 const currentFile = ref<string | null>(null)
 const fileContent = ref('')
 const loading = ref(false)
-const openTabs = ref<Array<{ path: string; name: string; content?: string; isPreview?: boolean }>>([])
+const openTabs = ref<Array<{ 
+  path: string
+  name: string
+  content?: string
+  isPreview?: boolean
+  viewMode?: 'editor' | 'preview' | 'split'
+  isPreviewTab?: boolean  // 标识是否为预览标签
+}>>([])
 const tabContents = ref<Map<string, string>>(new Map())
 const viewMode = ref<'editor' | 'split' | 'preview'>('editor')
 const scrollPercentage = ref(0)
 const previewTabPath = ref<string | null>(null) // 跟踪当前预览标签
 
+// 拖动调整宽度相关
+const leftPanelWidth = ref(50) // 左侧面板宽度百分比
+const isResizing = ref(false)
+const splitContainer = ref<HTMLElement>()
+const startX = ref(0)
+const startLeftWidth = ref(0)
+
 // 判断是否为 Markdown 文件
 const isMarkdownFile = computed(() => {
   if (!currentFile.value) return false
-  const ext = currentFile.value.split('.').pop()?.toLowerCase()
+  // 对于预览标签，检查源文件的扩展名
+  const actualPath = currentFile.value.replace('::preview', '')
+  const ext = actualPath.split('.').pop()?.toLowerCase()
   return ext === 'md' || ext === 'markdown'
+})
+
+// 判断当前是否为预览标签
+const isPreviewTab = computed(() => {
+  if (!currentFile.value) return false
+  const tab = openTabs.value.find(t => t.path === currentFile.value)
+  return tab?.isPreviewTab || false
 })
 
 // 计算文件语言类型
@@ -246,20 +274,42 @@ const loadFile = async (path: string, mode: 'preview' | 'open' = 'open') => {
 
 // 选择标签
 const selectTab = (path: string) => {
-  const content = tabContents.value.get(path)
+  const tab = openTabs.value.find(t => t.path === path)
+  
+  // 对于预览标签，获取源文件的内容
+  let contentPath = path
+  if (tab && tab.isPreviewTab && path.endsWith('::preview')) {
+    contentPath = path.replace('::preview', '')
+  }
+  
+  const content = tabContents.value.get(contentPath)
+  
   if (content !== undefined) {
     currentFile.value = path
     fileContent.value = content
     
-    // 如果选择的是预览标签，准备在编辑时转换为正常标签
-    const tab = openTabs.value.find(t => t.path === path)
-    if (tab && tab.isPreview) {
-      // 监听文件内容变化，一旦编辑就转为正常标签
-      // 这将在 watch fileContent 中处理
+    // 根据标签类型设置视图模式
+    if (tab) {
+      if (tab.isPreviewTab) {
+        // 预览标签始终使用预览模式
+        viewMode.value = 'preview'
+      } else if (tab.viewMode) {
+        // 使用标签保存的视图模式
+        viewMode.value = tab.viewMode
+      } else {
+        // 默认编辑器模式
+        viewMode.value = 'editor'
+      }
+      
+      // 如果选择的是临时预览标签，准备在编辑时转换为正常标签
+      if (tab.isPreview) {
+        // 监听文件内容变化，一旦编辑就转为正常标签
+        // 这将在 watch fileContent 中处理
+      }
     }
   } else {
     // 如果缓存中没有内容，重新加载
-    loadFile(path, 'open')
+    loadFile(contentPath, 'open')
   }
 }
 
@@ -368,6 +418,85 @@ const handlePreviewScroll = (percentage: number) => {
   scrollPercentage.value = percentage
 }
 
+// 在新标签中打开预览
+const openPreviewInNewTab = () => {
+  if (!currentFile.value || !isMarkdownFile.value) return
+  
+  // 获取实际的文件路径（去掉可能的 ::preview 后缀）
+  const actualPath = currentFile.value.replace('::preview', '')
+  const fileName = actualPath.split(/[\\/]/).pop() || 'untitled'
+  const previewTabPath = `${actualPath}::preview`
+  
+  // 检查是否已存在预览标签
+  const existingPreviewTab = openTabs.value.find(tab => 
+    tab.path === previewTabPath && tab.isPreviewTab
+  )
+  
+  if (existingPreviewTab) {
+    // 如果已存在，切换到该标签
+    selectTab(previewTabPath)
+    return
+  }
+  
+  // 创建新的预览标签
+  openTabs.value.push({
+    path: previewTabPath,
+    name: `[预览] ${fileName}`,
+    isPreview: false,
+    viewMode: 'preview',
+    isPreviewTab: true
+  })
+  
+  // 预览标签不需要单独存储内容，它会从源文件获取
+  
+  // 切换到预览标签
+  selectTab(previewTabPath)
+}
+
+// 开始拖动
+const startResize = (e: MouseEvent) => {
+  isResizing.value = true
+  startX.value = e.clientX
+  startLeftWidth.value = leftPanelWidth.value
+  
+  document.addEventListener('mousemove', handleMouseMove)
+  document.addEventListener('mouseup', stopResize)
+  
+  // 防止选中文本
+  e.preventDefault()
+  document.body.style.userSelect = 'none'
+  document.body.style.cursor = 'col-resize'
+}
+
+// 处理拖动
+const handleMouseMove = (e: MouseEvent) => {
+  if (!isResizing.value || !splitContainer.value) return
+  
+  const containerWidth = splitContainer.value.offsetWidth
+  const deltaX = e.clientX - startX.value
+  const deltaPercent = (deltaX / containerWidth) * 100
+  const newLeftWidth = startLeftWidth.value + deltaPercent
+  
+  // 限制宽度范围 (20% - 80%)
+  if (newLeftWidth >= 20 && newLeftWidth <= 80) {
+    leftPanelWidth.value = newLeftWidth
+  }
+}
+
+// 停止拖动
+const stopResize = () => {
+  isResizing.value = false
+  document.removeEventListener('mousemove', handleMouseMove)
+  document.removeEventListener('mouseup', stopResize)
+  
+  // 恢复默认
+  document.body.style.userSelect = ''
+  document.body.style.cursor = ''
+  
+  // 保存宽度到 localStorage
+  localStorage.setItem('markdown-split-width', String(leftPanelWidth.value))
+}
+
 // 监听文件路径和模式变化
 watch(
   () => ({ path: props.filePath, mode: props.fileMode }),
@@ -419,15 +548,40 @@ watch(fileContent, (newContent, oldContent) => {
   // 如果内容发生变化且当前标签是预览标签，转换为正常标签
   if (newContent !== oldContent && currentFile.value) {
     const currentTab = openTabs.value.find(tab => tab.path === currentFile.value)
+    
+    // 如果是预览标签，不允许编辑
+    if (currentTab && currentTab.isPreviewTab) {
+      // 预览标签是只读的，恢复原内容
+      fileContent.value = oldContent
+      return
+    }
+    
     if (currentTab && currentTab.isPreview) {
       currentTab.isPreview = false
       if (previewTabPath.value === currentFile.value) {
         previewTabPath.value = null
       }
     }
+    
     // 更新缓存中的内容
     if (currentFile.value) {
-      tabContents.value.set(currentFile.value, newContent)
+      // 获取实际的文件路径（去掉 ::preview 后缀）
+      const actualPath = currentFile.value.replace('::preview', '')
+      tabContents.value.set(actualPath, newContent)
+      
+      // 同步更新关联的预览标签内容
+      const previewPath = `${actualPath}::preview`
+      const previewTab = openTabs.value.find(tab => tab.path === previewPath && tab.isPreviewTab)
+      if (previewTab) {
+        // 预览标签不需要单独存储内容，它会从源文件获取
+        // 如果预览标签当前正在显示，触发重新渲染
+        if (currentFile.value === previewPath) {
+          // 触发预览更新
+          nextTick(() => {
+            fileContent.value = newContent
+          })
+        }
+      }
     }
   }
 })
@@ -435,6 +589,24 @@ watch(fileContent, (newContent, oldContent) => {
 // 重置初始加载标志
 watch(currentFile, () => {
   isInitialLoad = true
+})
+
+// 组件挂载时恢复保存的宽度
+onMounted(() => {
+  const savedWidth = localStorage.getItem('markdown-split-width')
+  if (savedWidth) {
+    const width = parseFloat(savedWidth)
+    if (width >= 20 && width <= 80) {
+      leftPanelWidth.value = width
+    }
+  }
+})
+
+// 组件卸载时清理事件监听
+onUnmounted(() => {
+  if (isResizing.value) {
+    stopResize()
+  }
 })
 </script>
 
@@ -541,19 +713,46 @@ watch(currentFile, () => {
 }
 
 .split-panel {
-  flex: 1;
   overflow: hidden;
+  flex-shrink: 0;
 }
 
 .split-divider {
-  width: 1px;
-  background: var(--wt-border);
+  width: 4px;
+  background: transparent;
   cursor: col-resize;
   position: relative;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+
+.split-divider::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 1px;
+  height: 100%;
+  background: var(--wt-border);
+  transition: all 0.15s;
 }
 
 .split-divider:hover {
+  background: var(--wt-bg-hover);
+}
+
+.split-divider:hover::before {
   background: var(--wt-accent);
+  width: 2px;
+}
+
+.split-divider.resizing {
+  background: var(--wt-bg-active);
+}
+
+.split-divider.resizing::before {
+  background: var(--wt-accent);
+  width: 2px;
 }
 
 /* 移除Monaco编辑器的边框和圆角 */

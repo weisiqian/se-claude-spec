@@ -85,7 +85,8 @@ const api = {
   createDirectory: (parentPath: string, folderName: string) => ipcRenderer.invoke('create-directory', parentPath, folderName),
   renameItem: (oldPath: string, newName: string) => ipcRenderer.invoke('rename-item', oldPath, newName),
   deleteItem: (itemPath: string) => ipcRenderer.invoke('delete-item', itemPath),
-  copyPath: (filePath: string) => ipcRenderer.invoke('copy-path', filePath)
+  copyPath: (filePath: string) => ipcRenderer.invoke('copy-path', filePath),
+  writeFile: (filePath: string, content: string) => ipcRenderer.invoke('write-file', filePath, content)
 }
 
 // Use `contextBridge` APIs to expose Electron APIs to

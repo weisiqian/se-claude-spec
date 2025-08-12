@@ -1163,6 +1163,20 @@ app.whenReady().then(() => {
     }
   })
   
+  // 写入文件内容
+  ipcMain.handle('write-file', async (_, filePath: string, content: string) => {
+    try {
+      fs.writeFileSync(filePath, content, 'utf-8')
+      return { success: true }
+    } catch (error: any) {
+      console.error('写入文件失败:', error)
+      return {
+        success: false,
+        error: error.message || '写入文件失败'
+      }
+    }
+  })
+  
   // 在文件管理器中显示文件
   ipcMain.handle('show-item-in-folder', async (_, filePath: string) => {
     shell.showItemInFolder(filePath)

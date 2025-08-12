@@ -213,6 +213,11 @@ declare global {
       copyPath: (filePath: string) => Promise<{
         success: boolean
       }>
+      
+      writeFile: (filePath: string, content: string) => Promise<{
+        success: boolean
+        error?: string
+      }>
     }
   }
 }

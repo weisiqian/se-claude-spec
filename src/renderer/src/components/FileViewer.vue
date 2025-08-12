@@ -89,6 +89,17 @@
       <h3>未选择文件</h3>
       <p>从左侧文件树中选择一个文件来查看</p>
     </div>
+    
+    <!-- 保存确认对话框 -->
+    <ConfirmDialog
+      v-model:visible="showSaveConfirm"
+      :title="saveConfirmTitle"
+      :message="saveConfirmMessage"
+      confirm-text="保存"
+      cancel-text="不保存"
+      @confirm="handleSaveConfirm"
+      @cancel="handleSaveCancel"
+    />
   </div>
 </template>
 
@@ -97,6 +108,7 @@ import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import MonacoEditor from './MonacoEditor.vue'
 import FileTabs from './FileTabs.vue'
 import MarkdownPreview from './MarkdownPreview.vue'
+import ConfirmDialog from './ConfirmDialog.vue'
 
 const props = defineProps<{
   filePath?: string | null
@@ -113,11 +125,20 @@ const openTabs = ref<Array<{
   isPreview?: boolean
   viewMode?: 'editor' | 'preview' | 'split'
   isPreviewTab?: boolean  // 标识是否为预览标签
+  unsaved?: boolean  // 标记文件是否有未保存的更改
 }>>([])
 const tabContents = ref<Map<string, string>>(new Map())
+const originalContents = ref<Map<string, string>>(new Map())  // 存储文件的原始内容
 const viewMode = ref<'editor' | 'split' | 'preview'>('editor')
 const scrollPercentage = ref(0)
 const previewTabPath = ref<string | null>(null) // 跟踪当前预览标签
+let isLoadingFile = false  // 标记是否正在加载文件，避免误判为修改
+
+// 保存确认对话框相关
+const showSaveConfirm = ref(false)
+const saveConfirmTitle = ref('')
+const saveConfirmMessage = ref('')
+let pendingCloseTab: string | null = null  // 等待关闭的标签
 
 // 拖动调整宽度相关
 const leftPanelWidth = ref(50) // 左侧面板宽度百分比
@@ -195,11 +216,13 @@ const pathSegments = computed(() => {
 // 加载文件内容
 const loadFile = async (path: string, mode: 'preview' | 'open' = 'open') => {
   loading.value = true
+  isLoadingFile = true  // 标记正在加载文件
   try {
     const content = await window.api.readFile(path)
     
     // 保存内容到缓存
     tabContents.value.set(path, content)
+    originalContents.value.set(path, content)  // 保存原始内容
     fileContent.value = content
     currentFile.value = path
     
@@ -230,7 +253,8 @@ const loadFile = async (path: string, mode: 'preview' | 'open' = 'open') => {
           path,
           name: fileName,
           content,
-          isPreview: true
+          isPreview: true,
+          unsaved: false
         })
       }
       
@@ -260,7 +284,8 @@ const loadFile = async (path: string, mode: 'preview' | 'open' = 'open') => {
           path,
           name: fileName,
           content,
-          isPreview: false
+          isPreview: false,
+          unsaved: false
         })
       }
     }
@@ -269,6 +294,10 @@ const loadFile = async (path: string, mode: 'preview' | 'open' = 'open') => {
     fileContent.value = `无法读取文件: ${error}`
   } finally {
     loading.value = false
+    // 延迟重置加载标志，确保初始化完成
+    setTimeout(() => {
+      isLoadingFile = false
+    }, 100)
   }
 }
 
@@ -285,8 +314,12 @@ const selectTab = (path: string) => {
   const content = tabContents.value.get(contentPath)
   
   if (content !== undefined) {
+    isLoadingFile = true  // 标记为加载文件，避免误判为修改
     currentFile.value = path
     fileContent.value = content
+    setTimeout(() => {
+      isLoadingFile = false
+    }, 100)
     
     // 根据标签类型设置视图模式
     if (tab) {
@@ -313,12 +346,37 @@ const selectTab = (path: string) => {
   }
 }
 
+// 检查文件是否有未保存的更改
+const hasUnsavedChanges = (path: string) => {
+  const tab = openTabs.value.find(t => t.path === path)
+  return tab?.unsaved || false
+}
+
 // 关闭标签
 const closeTab = (path: string) => {
+  // 检查是否有未保存的更改
+  if (hasUnsavedChanges(path)) {
+    const tab = openTabs.value.find(t => t.path === path)
+    if (tab) {
+      pendingCloseTab = path
+      saveConfirmTitle.value = '保存更改'
+      saveConfirmMessage.value = `文件 "${tab.name}" 有未保存的更改，是否保存？`
+      showSaveConfirm.value = true
+      return
+    }
+  }
+  
+  // 直接关闭没有未保存更改的标签
+  doCloseTab(path)
+}
+
+// 实际关闭标签的逻辑
+const doCloseTab = (path: string) => {
   const index = openTabs.value.findIndex(tab => tab.path === path)
   if (index !== -1) {
     openTabs.value.splice(index, 1)
     tabContents.value.delete(path)
+    originalContents.value.delete(path)  // 清理原始内容缓存
     
     // 如果关闭的是当前标签，切换到相邻标签
     if (path === currentFile.value) {
@@ -335,8 +393,16 @@ const closeTab = (path: string) => {
 
 // 关闭所有标签
 const closeAllTabs = () => {
+  // 检查是否有未保存的文件
+  const unsavedTabs = openTabs.value.filter(tab => tab.unsaved)
+  if (unsavedTabs.length > 0) {
+    // TODO: 处理批量关闭未保存文件
+    // 简化处理：直接关闭所有
+  }
+  
   openTabs.value = []
   tabContents.value.clear()
+  originalContents.value.clear()
   currentFile.value = null
   fileContent.value = ''
 }
@@ -539,10 +605,15 @@ watch(isMarkdownFile, (isMd) => {
 // 监听文件内容变化，编辑时自动将预览标签转换为正常标签
 let isInitialLoad = true
 watch(fileContent, (newContent, oldContent) => {
-  // 跳过初次加载
+  // 只在加载文件时跳过变化检测
+  if (isLoadingFile) {
+    return
+  }
+  
+  // 第一次加载完成后，重置标志
   if (isInitialLoad) {
     isInitialLoad = false
-    return
+    // 不要返回，继续处理可能的内容变化
   }
   
   // 如果内容发生变化且当前标签是预览标签，转换为正常标签
@@ -569,6 +640,12 @@ watch(fileContent, (newContent, oldContent) => {
       const actualPath = currentFile.value.replace('::preview', '')
       tabContents.value.set(actualPath, newContent)
       
+      // 检查内容是否与原始内容不同，更新 unsaved 状态
+      const originalContent = originalContents.value.get(actualPath)
+      if (currentTab && !currentTab.isPreviewTab) {
+        currentTab.unsaved = originalContent !== newContent
+      }
+      
       // 同步更新关联的预览标签内容
       const previewPath = `${actualPath}::preview`
       const previewTab = openTabs.value.find(tab => tab.path === previewPath && tab.isPreviewTab)
@@ -591,7 +668,69 @@ watch(currentFile, () => {
   isInitialLoad = true
 })
 
-// 组件挂载时恢复保存的宽度
+// 保存当前文件
+const saveCurrentFile = async () => {
+  if (!currentFile.value || isPreviewTab.value) return
+  
+  // 获取实际的文件路径（去掉 ::preview 后缀）
+  const actualPath = currentFile.value.replace('::preview', '')
+  const content = fileContent.value
+  
+  try {
+    const result = await window.api.writeFile(actualPath, content)
+    if (result.success) {
+      // 更新原始内容
+      originalContents.value.set(actualPath, content)
+      
+      // 更新标签的 unsaved 状态
+      const tab = openTabs.value.find(t => t.path === currentFile.value)
+      if (tab) {
+        tab.unsaved = false
+      }
+      
+      console.log('文件保存成功:', actualPath)
+    } else {
+      console.error('文件保存失败:', result.error)
+      // TODO: 显示错误提示
+    }
+  } catch (error) {
+    console.error('保存文件时出错:', error)
+    // TODO: 显示错误提示
+  }
+}
+
+// 处理保存确认
+const handleSaveConfirm = async () => {
+  if (pendingCloseTab) {
+    // 先切换到该标签
+    selectTab(pendingCloseTab)
+    // 保存文件
+    await saveCurrentFile()
+    // 关闭标签
+    doCloseTab(pendingCloseTab)
+    pendingCloseTab = null
+  }
+}
+
+// 处理取消保存
+const handleSaveCancel = () => {
+  if (pendingCloseTab) {
+    // 不保存，直接关闭
+    doCloseTab(pendingCloseTab)
+    pendingCloseTab = null
+  }
+}
+
+// 处理键盘快捷键
+const handleKeyDown = (e: KeyboardEvent) => {
+  // Ctrl+S 或 Cmd+S 保存文件
+  if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+    e.preventDefault()
+    saveCurrentFile()
+  }
+}
+
+// 挂载时添加键盘事件监听
 onMounted(() => {
   const savedWidth = localStorage.getItem('markdown-split-width')
   if (savedWidth) {
@@ -600,6 +739,9 @@ onMounted(() => {
       leftPanelWidth.value = width
     }
   }
+  
+  // 添加键盘事件监听
+  document.addEventListener('keydown', handleKeyDown)
 })
 
 // 组件卸载时清理事件监听
@@ -607,6 +749,9 @@ onUnmounted(() => {
   if (isResizing.value) {
     stopResize()
   }
+  
+  // 移除键盘事件监听
+  document.removeEventListener('keydown', handleKeyDown)
 })
 </script>
 

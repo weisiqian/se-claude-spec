@@ -60,7 +60,8 @@ import {
   Brush,
   Tickets,
   QuestionFilled,
-  Operation
+  Operation,
+  Grid
 } from '@element-plus/icons-vue'
 
 // 子菜单组件
@@ -68,6 +69,7 @@ import ProjectSubmenu from './submenus/ProjectSubmenu.vue'
 import RequirementSubmenu from './submenus/RequirementSubmenu.vue'
 import DesignSubmenu from './submenus/DesignSubmenu.vue'
 import TaskSubmenu from './submenus/TaskSubmenu.vue'
+import ModeSubmenu from './submenus/ModeSubmenu.vue'
 import HelpSubmenu from './submenus/HelpSubmenu.vue'
 
 const props = defineProps<{
@@ -92,6 +94,7 @@ const menuItems = shallowRef([
   { key: 'design', label: '设计', icon: Brush },
   { key: 'task', label: '任务', icon: Tickets },
   { key: 'execution', label: '执行计划', icon: Operation },
+  { key: 'mode', label: '模式', icon: Grid },
   { key: 'help', label: '帮助', icon: QuestionFilled }
 ])
 
@@ -101,6 +104,7 @@ const getSubmenuComponent = (key: string) => {
     requirement: RequirementSubmenu,
     design: DesignSubmenu,
     task: TaskSubmenu,
+    mode: ModeSubmenu,
     help: HelpSubmenu
   }
   return components[key]
@@ -130,6 +134,7 @@ const updateSubmenuPosition = (menu: string) => {
     'design': '设计',
     'task': '任务',
     'execution': '执行计划',
+    'mode': '模式',
     'help': '帮助'
   }
   

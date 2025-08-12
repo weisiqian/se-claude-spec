@@ -1,21 +1,7 @@
 <template>
   <div class="terminal-container" :class="{ 'dark': isDark }" ref="terminalContainer">
-    <!-- 终端面板标签栏 -->
-    <TerminalPanelTabs @tab-change="handleTabChange" ref="panelTabsRef" />
-    
     <!-- 终端内容 -->
-    <div v-show="activePanel === 'terminal'" class="terminal-content" ref="terminalContent"></div>
-    
-    <!-- SDK 面板 -->
-    <div v-show="activePanel === 'sdk'" class="sdk-panel">
-      <div class="sdk-content">
-        <div class="empty-state">
-          <div class="empty-icon">⚙️</div>
-          <h3>SDK 面板</h3>
-          <p>此面板将用于SDK相关功能</p>
-        </div>
-      </div>
-    </div>
+    <div class="terminal-content" ref="terminalContent"></div>
     
     <!-- 自定义右键菜单 -->
     <ContextMenu
@@ -35,7 +21,6 @@ import { Terminal } from 'xterm'
 import { FitAddon } from 'xterm-addon-fit'
 import { WebLinksAddon } from 'xterm-addon-web-links'
 import ContextMenu from './ContextMenu.vue'
-import TerminalPanelTabs from './TerminalPanelTabs.vue'
 import 'xterm/css/xterm.css'
 
 const props = defineProps<{
@@ -54,10 +39,8 @@ interface TerminalInstance {
 
 const terminalContainer = ref<HTMLElement>()
 const terminalContent = ref<HTMLElement>()
-const panelTabsRef = ref<any>(null)
 const terminals = ref<TerminalInstance[]>([])
 const activeTerminalId = ref<string>('')
-const activePanel = ref<'terminal' | 'sdk'>('terminal')
 let currentTerminal: Terminal | null = null
 let resizeObserver: ResizeObserver | null = null
 
@@ -487,14 +470,6 @@ const changeDirectory = async (path: string) => {
 
 // 在当前终端执行命令
 const executeCommand = async (command: string) => {
-  // 确保切换到终端标签
-  if (activePanel.value !== 'terminal') {
-    activePanel.value = 'terminal'
-    if (panelTabsRef.value) {
-      panelTabsRef.value.activeTab = 'terminal'
-    }
-  }
-  
   if (!currentTerminal || !activeTerminalId.value) {
     // 如果没有活动终端，创建一个新的
     await createNewTerminal()
@@ -506,21 +481,6 @@ const executeCommand = async (command: string) => {
     // 发送命令到终端（添加回车符执行）
     const fullCommand = `${command}\r`
     await window.electron.ipcRenderer.invoke('terminal:write', activeTerminalId.value, fullCommand)
-  }
-}
-
-// 处理标签切换
-const handleTabChange = (tabId: string) => {
-  activePanel.value = tabId as 'terminal' | 'sdk'
-  
-  // 如果切换到终端标签，确保终端尺寸正确
-  if (tabId === 'terminal' && currentTerminal) {
-    nextTick(() => {
-      const termInstance = terminals.value.find(t => t.id === activeTerminalId.value)
-      if (termInstance) {
-        termInstance.fitAddon.fit()
-      }
-    })
   }
 }
 
@@ -554,47 +514,6 @@ defineExpose({
   padding: 8px;
   position: relative;
   z-index: 2;
-}
-
-.sdk-panel {
-  flex: 1;
-  overflow: hidden;
-  background: var(--wt-bg-primary);
-  display: flex;
-  flex-direction: column;
-}
-
-.sdk-content {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-}
-
-.empty-state {
-  text-align: center;
-  color: var(--wt-text-secondary);
-  max-width: 300px;
-}
-
-.empty-icon {
-  font-size: 48px;
-  margin-bottom: 16px;
-  opacity: 0.6;
-}
-
-.empty-state h3 {
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--wt-text-primary);
-  margin: 0 0 8px 0;
-}
-
-.empty-state p {
-  font-size: 14px;
-  margin: 0;
-  line-height: 1.5;
 }
 
 :deep(.xterm) {

@@ -15,14 +15,17 @@ import DesignStatus from './components/DesignStatus.vue'
 import TaskCreator from './components/TaskCreator.vue'
 import TaskDetail from './components/TaskDetail.vue'
 import TaskExecutionManager from './components/TaskExecutionManager.vue'
+import TerminalPanel from './components/TerminalPanel.vue'
 
 const projectPath = ref<string | null>(null)
 const showForm = ref(false)
 const formType = ref<'requirement' | 'design' | 'task'>('requirement')
 const formAction = ref<'create' | 'update' | 'execute'>('create')
 const isDark = ref(false)
+const appMode = ref<'terminal' | 'spc'>('terminal')
 const activePanel = ref<'requirement' | 'design' | 'task' | ''>('')
 const terminalRef = ref<any>(null)
+const terminalPanelRef = ref<any>(null)
 const terminals = ref<Array<{ id: string; label?: string }>>([])
 const activeTerminalId = ref<string>('')
 const updateInterval = ref<NodeJS.Timeout | null>(null)
@@ -43,7 +46,14 @@ const selectedTask = ref<any>(null)
 provide('isDark', isDark)
 
 const handleMenuAction = (type: string, action: string) => {
-  if (type === 'execution' && action === 'open-manager') {
+  if (type === 'mode' && action === 'switch') {
+    // 切换应用模式
+    const newMode = appMode.value === 'terminal' ? 'spc' : 'terminal'
+    handleModeSwitch(newMode)
+  } else if (type === 'mode' && (action === 'terminal' || action === 'spc')) {
+    // 直接切换到指定模式
+    handleModeSwitch(action as 'terminal' | 'spc')
+  } else if (type === 'execution' && action === 'open-manager') {
     // 打开执行计划管理页面
     activePanel.value = 'execution'
     showTaskExecutionManager.value = true
@@ -115,6 +125,37 @@ const handleDirectorySelected = (path: string) => {
 const handleThemeToggle = () => {
   isDark.value = !isDark.value
   localStorage.setItem('theme', isDark.value ? 'dark' : 'light')
+}
+
+const handleModeSwitch = (mode: 'terminal' | 'spc') => {
+  appMode.value = mode
+  localStorage.setItem('appMode', mode)
+  
+  if (mode === 'terminal') {
+    // 在终端模式下，清除活动面板
+    activePanel.value = ''
+    showForm.value = false
+    showRequirementCreator.value = false
+    showRequirementStatus.value = false
+    showRequirementEditor.value = false
+    showDesignEditor.value = false
+    showDesignStatus.value = false
+    showTaskCreator.value = false
+    showTaskDetail.value = false
+    showTaskExecutionManager.value = false
+  } else if (mode === 'spc') {
+    // 在SPC模式下，默认显示需求管理
+    activePanel.value = 'requirement'
+    showForm.value = false
+    showRequirementCreator.value = false
+    showRequirementStatus.value = false
+    showRequirementEditor.value = false
+    showDesignEditor.value = false
+    showDesignStatus.value = false
+    showTaskCreator.value = false
+    showTaskDetail.value = false
+    showTaskExecutionManager.value = false
+  }
 }
 
 const handleActivitySelect = (id: string) => {
@@ -219,24 +260,39 @@ const handlePanelItemSelect = (item: any) => {
 }
 
 const handleCreateTerminal = async (type: string = 'bash') => {
-  await terminalRef.value?.createNewTerminal(type)
+  if (appMode.value === 'terminal') {
+    await terminalRef.value?.createNewTerminal(type)
+  } else {
+    await terminalPanelRef.value?.handleCreateTerminal(type)
+  }
   updateTerminalState()
 }
 
 const handleSwitchTerminal = (id: string) => {
-  terminalRef.value?.switchTerminal(id)
+  if (appMode.value === 'terminal') {
+    terminalRef.value?.switchTerminal(id)
+  } else {
+    terminalPanelRef.value?.handleSwitchTerminal(id)
+  }
   updateTerminalState()
 }
 
 const handleCloseTerminal = async (id: string) => {
-  await terminalRef.value?.closeTerminal(id)
+  if (appMode.value === 'terminal') {
+    await terminalRef.value?.closeTerminal(id)
+  } else {
+    await terminalPanelRef.value?.handleCloseTerminal(id)
+  }
   updateTerminalState()
 }
 
 const updateTerminalState = () => {
-  if (terminalRef.value) {
+  if (appMode.value === 'terminal' && terminalRef.value) {
     terminals.value = [...terminalRef.value.terminals]
     activeTerminalId.value = terminalRef.value.activeTerminalId
+  } else if (appMode.value === 'spc' && terminalPanelRef.value) {
+    terminals.value = terminalPanelRef.value.terminals || []
+    activeTerminalId.value = terminalPanelRef.value.activeTerminalId || ''
   }
 }
 
@@ -248,8 +304,10 @@ const handleRequirementSubmit = (data: any) => {
 
 const handleExecuteCommand = async (command: string) => {
   // 在终端中执行命令
-  if (terminalRef.value) {
+  if (appMode.value === 'terminal' && terminalRef.value) {
     await terminalRef.value.executeCommand(command)
+  } else if (appMode.value === 'spc' && terminalPanelRef.value) {
+    await terminalPanelRef.value.executeCommand(command)
   }
 }
 
@@ -390,13 +448,27 @@ onMounted(async () => {
       projectPath.value = workspace
       localStorage.setItem('projectPath', workspace)
       // 切换终端工作目录
-      terminalRef.value?.changeDirectory(workspace)
+      if (appMode.value === 'terminal') {
+        terminalRef.value?.changeDirectory(workspace)
+      } else {
+        terminalPanelRef.value?.changeDirectory(workspace)
+      }
     })
   }
   
   // 恢复主题设置
   const savedTheme = localStorage.getItem('theme')
   isDark.value = savedTheme === 'dark'
+  
+  // 恢复应用模式设置
+  const savedMode = localStorage.getItem('appMode')
+  if (savedMode === 'spc' || savedMode === 'terminal') {
+    appMode.value = savedMode
+    // 如果是SPC模式，默认显示需求管理
+    if (savedMode === 'spc') {
+      activePanel.value = 'requirement'
+    }
+  }
   
   // 检测窗口最大化状态
   if (window.api?.windowControls) {
@@ -420,7 +492,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="app" :class="{ 'dark': isDark, 'maximized': isMaximized }">
+  <div class="app" :class="{ 'dark': isDark, 'maximized': isMaximized, 'terminal-mode': appMode === 'terminal', 'spc-mode': appMode === 'spc' }">
     <TitleBar 
       @menu-action="handleMenuAction"
       @directory-selected="handleDirectorySelected"
@@ -429,11 +501,22 @@ onUnmounted(() => {
       @switch-terminal="handleSwitchTerminal"
       @close-terminal="handleCloseTerminal"
       :is-dark="isDark"
+      :app-mode="appMode"
       :terminals="terminals"
       :active-terminal-id="activeTerminalId"
     />
     <div class="content">
-      <SplitLayout v-if="activePanel">
+      <!-- 终端模式：只显示终端 -->
+      <Terminal 
+        v-if="appMode === 'terminal'" 
+        ref="terminalRef" 
+        :project-path="projectPath" 
+        :is-dark="isDark"
+        class="full-terminal" 
+      />
+      
+      <!-- SPC模式：显示完整的IDE布局 -->
+      <SplitLayout v-else-if="appMode === 'spc' && activePanel">
         <template #activityBar>
           <ActivityBar 
             :is-dark="isDark"
@@ -522,11 +605,17 @@ onUnmounted(() => {
           />
         </template>
         <template #terminal>
-          <Terminal ref="terminalRef" :project-path="projectPath" :is-dark="isDark" />
+          <TerminalPanel 
+            ref="terminalPanelRef" 
+            :project-path="projectPath" 
+            :is-dark="isDark"
+            @terminals-update="terminals = $event"
+            @active-terminal-update="activeTerminalId = $event"
+          />
         </template>
       </SplitLayout>
       <ResizablePanel 
-        v-else-if="showForm"
+        v-else-if="appMode === 'spc' && showForm"
         :initial-side-width="600"
         :min-side-width="400"
         :max-side-width="800"
@@ -540,10 +629,24 @@ onUnmounted(() => {
           />
         </template>
         <template #side>
-          <Terminal ref="terminalRef" :project-path="projectPath" :is-dark="isDark" />
+          <TerminalPanel 
+            ref="terminalPanelRef" 
+            :project-path="projectPath" 
+            :is-dark="isDark"
+            @terminals-update="terminals = $event"
+            @active-terminal-update="activeTerminalId = $event"
+          />
         </template>
       </ResizablePanel>
-      <Terminal v-else ref="terminalRef" :project-path="projectPath" :is-dark="isDark" class="full-terminal" />
+      <TerminalPanel 
+        v-else-if="appMode === 'spc'" 
+        ref="terminalPanelRef" 
+        :project-path="projectPath" 
+        :is-dark="isDark" 
+        class="full-terminal"
+        @terminals-update="terminals = $event"
+        @active-terminal-update="activeTerminalId = $event"
+      />
     </div>
   </div>
 </template>

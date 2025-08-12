@@ -6,9 +6,9 @@ const emit = defineEmits<{
 }>()
 
 // 侧边栏宽度（活动栏+侧边面板）
-const sidePanelWidth = ref(598) // 48(活动栏) + 550(侧边面板)
-const minSidePanelWidth = 48 // 最小只显示活动栏
-const minTerminalWidth = 0 // 终端可以完全隐藏
+const sidePanelWidth = ref(350) // 48(活动栏) + 302(侧边面板) - 更合理的默认宽度
+const minSidePanelWidth = 200 // 最小宽度200px
+const minTerminalWidth = 300 // 终端最小宽度300px
 
 // 拖动状态
 const isDragging = ref(false)
@@ -32,8 +32,8 @@ const handleMouseMove = (e: MouseEvent) => {
   const delta = e.clientX - dragStartX.value
   const newWidth = dragStartWidth.value + delta
   
-  // 计算最大宽度（可以拖动到窗口最右侧）
-  const maxWidth = window.innerWidth - 4 // 只保留展开手柄的宽度
+  // 计算最大宽度（保留终端最小宽度）
+  const maxWidth = window.innerWidth - minTerminalWidth
   
   // 限制宽度范围
   if (newWidth >= minSidePanelWidth && newWidth <= maxWidth) {

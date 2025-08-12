@@ -1,22 +1,34 @@
 <template>
   <div class="title-bar">
-    <!-- 应用菜单 -->
-    <AppMenu 
-      :isDark="isDark"
-      @menu-action="handleMenuAction"
-      @directory-selected="handleDirectorySelected"
-      @theme-toggle="handleThemeToggle"
-    />
+    <!-- 终端模式：应用菜单 + 终端标签 -->
+    <template v-if="appMode === 'terminal'">
+      <AppMenu 
+        :isDark="isDark"
+        @menu-action="handleMenuAction"
+        @directory-selected="handleDirectorySelected"
+        @theme-toggle="handleThemeToggle"
+      />
 
-    <!-- 终端标签 -->
-    <TerminalTabs
-      :terminals="terminals"
-      :activeTerminalId="activeTerminalId"
-      @create-terminal="handleCreateTerminal"
-      @switch-terminal="handleSwitchTerminal"
-      @close-terminal="handleCloseTerminal"
-      @titlebar-double-click="handleTitleBarDoubleClick"
-    />
+      <!-- 终端标签 -->
+      <TerminalTabs
+        :terminals="terminals"
+        :activeTerminalId="activeTerminalId"
+        @create-terminal="handleCreateTerminal"
+        @switch-terminal="handleSwitchTerminal"
+        @close-terminal="handleCloseTerminal"
+        @titlebar-double-click="handleTitleBarDoubleClick"
+      />
+    </template>
+
+    <!-- SPC模式：横向菜单栏 -->
+    <template v-else>
+      <HorizontalMenuBar
+        :isDark="isDark"
+        @menu-action="handleMenuAction"
+        @directory-selected="handleDirectorySelected"
+        @theme-toggle="handleThemeToggle"
+      />
+    </template>
 
     <!-- 窗口控制按钮 -->
     <WindowControls 
@@ -30,11 +42,13 @@ import { ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import AppMenu from './AppMenu.vue'
 import TerminalTabs from './TerminalTabs.vue'
+import HorizontalMenuBar from './HorizontalMenuBar.vue'
 import WindowControls from './WindowControls.vue'
 import { useKeyboardShortcuts } from '@renderer/composables/useKeyboardShortcuts'
 
 const props = defineProps<{
   isDark?: boolean
+  appMode?: 'terminal' | 'spc'
   terminals?: Array<{ id: string; label?: string }>
   activeTerminalId?: string
 }>()
@@ -134,6 +148,7 @@ useKeyboardShortcuts({
   user-select: none;
   position: relative;
   z-index: 100;
+  border-radius: 8px 8px 0 0;
   transition: border-radius 0.2s;
   justify-content: space-between;
   overflow: visible !important;

@@ -5,6 +5,7 @@
       :class="{ 'is-selected': isSelected }"
       :style="{ paddingLeft: (level * 20 + 8) + 'px' }"
       @click="handleClick"
+      @dblclick="handleDoubleClick"
       @contextmenu.prevent="handleContextMenu"
     >
       <!-- 展开/折叠按钮 -->
@@ -57,7 +58,7 @@
         :key="child.path"
         :node="child"
         :level="level + 1"
-        @select="$emit('select', $event)"
+        @select="(...args) => $emit('select', ...args)"
         @select-node="$emit('select-node', $event)"
         @context-menu="$emit('context-menu', $event)"
         @create-file="$emit('create-file', $event)"
@@ -98,7 +99,7 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  'select': [path: string, type?: 'file' | 'directory']
+  'select': [path: string, mode: string]  // mode: 'preview', 'open', or 'directory'
   'select-node': [node: { path: string, type: 'file' | 'directory' }]
   'context-menu': [event: { path: string, x: number, y: number, type: 'file' | 'directory', name: string }]
   'create-file': [parentPath: string]
@@ -118,19 +119,32 @@ const contextMenuX = ref(0)
 const contextMenuY = ref(0)
 const contextMenuItems = ref<MenuItem[]>([])
 
+// 单击处理器
 const handleClick = () => {
+  // 立即更新选中状态
   emit('select-node', { path: props.node.path, type: props.node.type })
+  document.querySelectorAll('.node-item').forEach(item => {
+    item.classList.remove('is-selected')
+  })
+  isSelected.value = true
+  
   if (props.node.type === 'directory') {
-    emit('select', props.node.path, 'directory')
+    // 目录：单击展开/折叠
     toggleExpand()
   } else {
-    // 文件被点击，触发选择事件
-    emit('select', props.node.path, 'file')
-    // 更新选中状态
-    document.querySelectorAll('.node-item').forEach(item => {
-      item.classList.remove('is-selected')
-    })
-    isSelected.value = true
+    // 文件：单击预览
+    emit('select', props.node.path, 'preview')
+  }
+}
+
+// 双击处理器
+const handleDoubleClick = () => {
+  if (props.node.type === 'file') {
+    // 文件：双击打开为正常标签
+    emit('select', props.node.path, 'open')
+  } else if (props.node.type === 'directory') {
+    // 目录：双击也展开/折叠
+    toggleExpand()
   }
 }
 
@@ -150,7 +164,7 @@ const handleContextMenu = (e: MouseEvent) => {
     contextMenuItems.value = [
       {
         label: '打开',
-        action: () => emit('select', props.node.path, 'file')
+        action: () => emit('select', props.node.path, 'open')
       },
       { type: 'separator' },
       {
@@ -368,6 +382,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  // 清理事件监听器
   window.removeEventListener('collapse-all-nodes', handleCollapseAll)
   window.removeEventListener('expand-all-nodes', handleExpandAll)
   window.removeEventListener('expand-node', handleExpandNode as EventListener)

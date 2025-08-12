@@ -27,6 +27,7 @@
         @menu-action="handleMenuAction"
         @directory-selected="handleDirectorySelected"
         @theme-toggle="handleThemeToggle"
+        @titlebar-double-click="handleTitleBarDoubleClick"
       />
     </template>
 

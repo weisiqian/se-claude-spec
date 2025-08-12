@@ -9,9 +9,11 @@
           class="tab-item"
           :class="{ 
             active: tab.path === activeTab,
-            'has-unsaved': tab.unsaved
+            'has-unsaved': tab.unsaved,
+            'is-preview': tab.isPreview
           }"
           @click="selectTab(tab.path)"
+          @dblclick="convertToNormalTab(tab)"
           @mousedown.middle="closeTab(tab.path)"
           @contextmenu.prevent="showContextMenu($event, tab)"
           :title="tab.path"
@@ -44,6 +46,26 @@
     
     <!-- 标签栏操作区 -->
     <div class="tabs-actions">
+      <!-- Markdown 预览按钮（只在 Markdown 文件时显示） -->
+      <template v-if="isMarkdownFile">
+        <button 
+          class="action-btn"
+          :class="{ active: viewMode === 'split' }"
+          @click="emit('change-view-mode', viewMode === 'split' ? 'editor' : 'split')"
+          :title="viewMode === 'split' ? '关闭预览 (Ctrl+K V)' : '打开预览 (Ctrl+K V)'"
+        >
+          <svg v-if="viewMode !== 'split'" width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+            <!-- 预览图标 -->
+            <path d="M1.5 4a.5.5 0 100-1 .5.5 0 000 1zM3 3.5a.5.5 0 01.5-.5h11a.5.5 0 010 1h-11a.5.5 0 01-.5-.5zm0 3a.5.5 0 01.5-.5h11a.5.5 0 010 1h-11a.5.5 0 01-.5-.5zm0 3a.5.5 0 01.5-.5h11a.5.5 0 010 1h-11a.5.5 0 01-.5-.5zm0 3a.5.5 0 01.5-.5h11a.5.5 0 010 1h-11a.5.5 0 01-.5-.5zM1.5 7a.5.5 0 100-1 .5.5 0 000 1zm0 3a.5.5 0 100-1 .5.5 0 000 1zm0 3a.5.5 0 100-1 .5.5 0 000 1z"/>
+          </svg>
+          <svg v-else width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+            <!-- 分屏图标 -->
+            <path d="M0 3a2 2 0 012-2h12a2 2 0 012 2v10a2 2 0 01-2 2H2a2 2 0 01-2-2V3zm8.5 1v10H14a.5.5 0 00.5-.5V3a.5.5 0 00-.5-.5H8.5zm-1 0H2a.5.5 0 00-.5.5v10a.5.5 0 00.5.5h5.5V4z"/>
+          </svg>
+        </button>
+        <div class="action-separator"></div>
+      </template>
+      
       <!-- 显示所有打开的编辑器 -->
       <button 
         class="action-btn" 
@@ -91,11 +113,14 @@ interface FileTab {
   content?: string
   language?: string
   unsaved?: boolean
+  isPreview?: boolean
 }
 
 const props = defineProps<{
   tabs: FileTab[]
   activeTab: string | null
+  isMarkdownFile?: boolean
+  viewMode?: 'editor' | 'split' | 'preview'
 }>()
 
 const emit = defineEmits<{
@@ -105,6 +130,8 @@ const emit = defineEmits<{
   'close-others': [path: string]
   'close-to-right': [path: string]
   'show-in-explorer': [path: string]
+  'change-view-mode': [mode: 'editor' | 'split' | 'preview']
+  'convert-preview-tab': [path: string]
 }>()
 
 const tabsContainer = ref<HTMLElement>()
@@ -118,6 +145,12 @@ const contextMenuTab = ref<FileTab | null>(null)
 
 const selectTab = (path: string) => {
   emit('select-tab', path)
+}
+
+const convertToNormalTab = (tab: FileTab) => {
+  if (tab.isPreview) {
+    emit('convert-preview-tab', tab.path)
+  }
 }
 
 const closeTab = (path: string) => {
@@ -537,6 +570,26 @@ watch(() => props.activeTab, async () => {
     opacity: 1;
     transform: translateX(0);
   }
+}
+
+/* 预览标签样式（斜体） */
+.tab-item.is-preview .tab-label {
+  font-style: italic;
+  opacity: 0.8;
+}
+
+/* 分隔符样式 */
+.action-separator {
+  width: 1px;
+  height: 16px;
+  background: var(--wt-border);
+  margin: 0 4px;
+}
+
+/* 激活的按钮样式 */
+.action-btn.active {
+  background: var(--wt-bg-active);
+  color: var(--wt-accent);
 }
 
 /* 响应式调整 */

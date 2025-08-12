@@ -1,7 +1,7 @@
 <template>
-  <div class="horizontal-menu-bar">
+  <div class="horizontal-menu-bar" @dblclick="handleTitleBarDoubleClick">
     <!-- 应用图标 -->
-    <AppIcon />
+    <AppIcon @dblclick.stop />
     
     <!-- 菜单项 -->
     <div 
@@ -11,6 +11,7 @@
       @mouseenter="handleMenuHover(item.key)"
       @mouseleave="handleMenuLeave"
       @click="handleMenuClick(item.key)"
+      @dblclick.stop
     >
       <span>{{ item.label }}</span>
       
@@ -59,6 +60,7 @@ const emit = defineEmits<{
   (e: 'menu-action', type: string, action: string): void
   (e: 'directory-selected', path: string): void
   (e: 'theme-toggle'): void
+  (e: 'titlebar-double-click'): void
 }>()
 
 const activeMenu = ref<string | null>(null)
@@ -148,6 +150,11 @@ const handleThemeToggle = () => {
   activeMenu.value = null
   emit('theme-toggle')
   ElMessage.success(`已切换至${props.isDark ? '浅色' : '深色'}主题`)
+}
+
+// 处理标题栏双击
+const handleTitleBarDoubleClick = () => {
+  emit('titlebar-double-click')
 }
 
 const handleShowAbout = () => {

@@ -125,7 +125,7 @@ interface FileNode {
 }
 
 const emit = defineEmits<{
-  'file-select': [path: string]
+  'file-select': [path: string, mode?: 'preview' | 'open']
 }>()
 
 const fileTree = ref<FileNode | null>(null)
@@ -200,11 +200,21 @@ const toggleWorkspace = () => {
   workspaceExpanded.value = !workspaceExpanded.value
 }
 
-const handleFileSelect = (path: string, type: 'file' | 'directory' = 'file') => {
+const handleFileSelect = (path: string, mode: string) => {
+  // mode can be 'preview', 'open', or 'directory'
   selectedPath.value = path
-  selectedNode.value = { path, type }
-  if (type === 'file') {
-    emit('file-select', path)
+  
+  if (mode === 'preview') {
+    // 单击文件：仅预览，不打开标签
+    selectedNode.value = { path, type: 'file' }
+    emit('file-select', path, 'preview')
+  } else if (mode === 'open') {
+    // 双击文件：打开标签进行编辑
+    selectedNode.value = { path, type: 'file' }
+    emit('file-select', path, 'open')
+  } else if (mode === 'directory') {
+    // 单击目录：仅更新选中状态，不触发文件选择
+    selectedNode.value = { path, type: 'directory' }
   }
 }
 

@@ -5,7 +5,7 @@
       class="top-panel" 
       :style="{ height: topHeight + 'px' }"
     >
-      <FileViewer :file-path="selectedFile" />
+      <FileViewer :file-path="selectedFile" :file-mode="selectedFileMode" />
     </div>
     
     <!-- 可拖动的水平分隔条 -->
@@ -37,6 +37,7 @@ import TerminalPanel from './TerminalPanel.vue'
 
 const props = defineProps<{
   selectedFile?: string | null
+  selectedFileMode?: 'preview' | 'open'
   projectPath?: string | null
   isDark?: boolean
 }>()

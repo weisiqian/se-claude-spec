@@ -44,6 +44,7 @@ const selectedRequirement = ref<any>(null)
 const selectedDesign = ref<any>(null)
 const selectedTask = ref<any>(null)
 const selectedFile = ref<string | null>(null)
+const selectedFileMode = ref<'preview' | 'open'>('preview')
 const showFileExplorer = ref(false)
 
 // 提供主题状态给子组件
@@ -197,8 +198,11 @@ const handleActivitySelect = (id: string) => {
 }
 
 // 处理文件选择
-const handleFileSelect = (filePath: string) => {
+const handleFileSelect = (filePath: string, mode: 'preview' | 'open' = 'preview') => {
+  // preview模式：只更新当前内容，不添加标签
+  // open模式：添加到标签并切换到该文件
   selectedFile.value = filePath
+  selectedFileMode.value = mode
 }
 
 const handlePanelItemSelect = (item: any) => {
@@ -639,6 +643,7 @@ onUnmounted(() => {
           <FileExplorerLayout
             v-if="activePanel === 'files'"
             :selected-file="selectedFile"
+            :selected-file-mode="selectedFileMode"
             :project-path="projectPath"
             :is-dark="isDark"
           />

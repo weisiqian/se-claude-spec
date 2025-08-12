@@ -58,6 +58,7 @@
         :node="child"
         :level="level + 1"
         @select="$emit('select', $event)"
+        @select-node="$emit('select-node', $event)"
         @context-menu="$emit('context-menu', $event)"
         @create-file="$emit('create-file', $event)"
         @create-folder="$emit('create-folder', $event)"
@@ -66,10 +67,21 @@
       />
     </div>
   </div>
+  
+  <!-- 右键菜单 -->
+  <ContextMenu
+    :items="contextMenuItems"
+    :x="contextMenuX"
+    :y="contextMenuY"
+    :visible="contextMenuVisible"
+    @close="contextMenuVisible = false"
+  />
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, onMounted, onUnmounted, nextTick, h } from 'vue'
+import ContextMenu from './ContextMenu.vue'
+import type { MenuItem } from './ContextMenu.vue'
 
 interface FileNode {
   name: string
@@ -86,7 +98,8 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  'select': [path: string]
+  'select': [path: string, type?: 'file' | 'directory']
+  'select-node': [node: { path: string, type: 'file' | 'directory' }]
   'context-menu': [event: { path: string, x: number, y: number, type: 'file' | 'directory', name: string }]
   'create-file': [parentPath: string]
   'create-folder': [parentPath: string]
@@ -99,12 +112,20 @@ const isSelected = ref(false)
 const isRenaming = ref(false)
 const renameInput = ref<HTMLInputElement | null>(null)
 
+// 右键菜单
+const contextMenuVisible = ref(false)
+const contextMenuX = ref(0)
+const contextMenuY = ref(0)
+const contextMenuItems = ref<MenuItem[]>([])
+
 const handleClick = () => {
+  emit('select-node', { path: props.node.path, type: props.node.type })
   if (props.node.type === 'directory') {
+    emit('select', props.node.path, 'directory')
     toggleExpand()
   } else {
     // 文件被点击，触发选择事件
-    emit('select', props.node.path)
+    emit('select', props.node.path, 'file')
     // 更新选中状态
     document.querySelectorAll('.node-item').forEach(item => {
       item.classList.remove('is-selected')
@@ -121,17 +142,109 @@ const toggleExpand = () => {
 
 // 处理右键菜单
 const handleContextMenu = (e: MouseEvent) => {
-  emit('context-menu', {
-    path: props.node.path,
-    x: e.clientX,
-    y: e.clientY,
-    type: props.node.type,
-    name: props.node.name
-  })
+  e.preventDefault()
+  e.stopPropagation()
+  
+  // 生成菜单项
+  if (props.node.type === 'file') {
+    contextMenuItems.value = [
+      {
+        label: '打开',
+        action: () => emit('select', props.node.path, 'file')
+      },
+      { type: 'separator' },
+      {
+        label: '在资源管理器中显示',
+        action: () => window.api.showItemInFolder(props.node.path)
+      },
+      { type: 'separator' },
+      {
+        label: '复制路径',
+        action: async () => {
+          await navigator.clipboard.writeText(props.node.path)
+        }
+      },
+      {
+        label: '复制相对路径',
+        action: async () => {
+          const workspace = await window.api.getCurrentWorkspace()
+          if (workspace) {
+            const relativePath = props.node.path.replace(workspace + '/', '').replace(workspace + '\\', '')
+            await navigator.clipboard.writeText(relativePath)
+          }
+        }
+      },
+      { type: 'separator' },
+      {
+        label: '重命名',
+        shortcut: 'F2',
+        action: () => startRename()
+      },
+      {
+        label: '删除',
+        shortcut: 'Delete',
+        action: () => emit('delete', props.node.path, props.node.name)
+      }
+    ]
+  } else {
+    contextMenuItems.value = [
+      {
+        label: '新建文件',
+        action: () => emit('create-file', props.node.path)
+      },
+      {
+        label: '新建文件夹',
+        action: () => emit('create-folder', props.node.path)
+      },
+      { type: 'separator' },
+      {
+        label: '在资源管理器中显示',
+        action: () => window.api.showItemInFolder(props.node.path)
+      },
+      { type: 'separator' },
+      {
+        label: '复制路径',
+        action: async () => {
+          await navigator.clipboard.writeText(props.node.path)
+        }
+      },
+      {
+        label: '复制相对路径',
+        action: async () => {
+          const workspace = await window.api.getCurrentWorkspace()
+          if (workspace) {
+            const relativePath = props.node.path.replace(workspace + '/', '').replace(workspace + '\\', '')
+            await navigator.clipboard.writeText(relativePath)
+          }
+        }
+      },
+      { type: 'separator' },
+      {
+        label: isExpanded.value ? '折叠' : '展开',
+        action: () => toggleExpand()
+      },
+      { type: 'separator' },
+      {
+        label: '重命名',
+        shortcut: 'F2',
+        action: () => startRename()
+      },
+      {
+        label: '删除',
+        shortcut: 'Delete',
+        action: () => emit('delete', props.node.path, props.node.name)
+      }
+    ]
+  }
+  
+  contextMenuX.value = e.clientX
+  contextMenuY.value = e.clientY
+  contextMenuVisible.value = true
 }
 
 // 开始重命名
 const startRename = async () => {
+  contextMenuVisible.value = false
   isRenaming.value = true
   await nextTick()
   if (renameInput.value) {
@@ -233,13 +346,31 @@ const handleKeydown = (e: KeyboardEvent) => {
   }
 }
 
+// 全局展开事件处理
+const handleExpandAll = () => {
+  if (props.node.type === 'directory') {
+    isExpanded.value = true
+  }
+}
+
+// 特定节点展开事件处理
+const handleExpandNode = (e: CustomEvent) => {
+  if (e.detail && e.detail.path === props.node.path) {
+    isExpanded.value = true
+  }
+}
+
 onMounted(() => {
   window.addEventListener('collapse-all-nodes', handleCollapseAll)
+  window.addEventListener('expand-all-nodes', handleExpandAll)
+  window.addEventListener('expand-node', handleExpandNode as EventListener)
   document.addEventListener('keydown', handleKeydown)
 })
 
 onUnmounted(() => {
   window.removeEventListener('collapse-all-nodes', handleCollapseAll)
+  window.removeEventListener('expand-all-nodes', handleExpandAll)
+  window.removeEventListener('expand-node', handleExpandNode as EventListener)
   document.removeEventListener('keydown', handleKeydown)
 })
 </script>

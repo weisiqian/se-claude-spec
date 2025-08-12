@@ -69,10 +69,21 @@
       </button>
     </div>
   </div>
+  
+  <!-- 右键菜单 -->
+  <ContextMenu
+    :items="contextMenuItems"
+    :x="contextMenuX"
+    :y="contextMenuY"
+    :visible="contextMenuVisible"
+    @close="contextMenuVisible = false"
+  />
 </template>
 
 <script setup lang="ts">
 import { ref, watch, nextTick, h } from 'vue'
+import ContextMenu from './ContextMenu.vue'
+import type { MenuItem } from './ContextMenu.vue'
 
 interface FileTab {
   path: string
@@ -98,6 +109,13 @@ const emit = defineEmits<{
 
 const tabsContainer = ref<HTMLElement>()
 
+// 右键菜单
+const contextMenuVisible = ref(false)
+const contextMenuX = ref(0)
+const contextMenuY = ref(0)
+const contextMenuItems = ref<MenuItem[]>([])
+const contextMenuTab = ref<FileTab | null>(null)
+
 const selectTab = (path: string) => {
   emit('select-tab', path)
 }
@@ -108,6 +126,14 @@ const closeTab = (path: string) => {
 
 const closeAllTabs = () => {
   emit('close-all-tabs')
+}
+
+const closeOthers = (path: string) => {
+  emit('close-others', path)
+}
+
+const closeToRight = (path: string) => {
+  emit('close-to-right', path)
 }
 
 // 处理鼠标滚轮事件
@@ -132,8 +158,65 @@ const showMoreActions = () => {
 
 // 显示右键菜单
 const showContextMenu = (e: MouseEvent, tab: FileTab) => {
-  // TODO: 实现右键菜单
-  console.log('Show context menu for', tab.name)
+  e.preventDefault()
+  e.stopPropagation()
+  
+  contextMenuTab.value = tab
+  
+  // 获取当前标签的索引
+  const tabIndex = props.tabs.findIndex(t => t.path === tab.path)
+  const hasOtherTabs = props.tabs.length > 1
+  const hasTabsToRight = tabIndex < props.tabs.length - 1
+  
+  contextMenuItems.value = [
+    {
+      label: '关闭',
+      shortcut: 'Ctrl+W',
+      action: () => closeTab(tab.path)
+    },
+    {
+      label: '关闭其他',
+      disabled: !hasOtherTabs,
+      action: () => closeOthers(tab.path)
+    },
+    {
+      label: '关闭到右侧',
+      disabled: !hasTabsToRight,
+      action: () => closeToRight(tab.path)
+    },
+    {
+      label: '关闭所有',
+      action: () => closeAllTabs()
+    },
+    { type: 'separator' },
+    {
+      label: '复制路径',
+      action: async () => {
+        await navigator.clipboard.writeText(tab.path)
+      }
+    },
+    {
+      label: '复制相对路径',
+      action: async () => {
+        const workspace = await window.api.getCurrentWorkspace()
+        if (workspace) {
+          const relativePath = tab.path.replace(workspace + '/', '').replace(workspace + '\\', '')
+          await navigator.clipboard.writeText(relativePath)
+        }
+      }
+    },
+    { type: 'separator' },
+    {
+      label: '在资源管理器中显示',
+      action: () => {
+        window.api.showItemInFolder(tab.path)
+      }
+    }
+  ]
+  
+  contextMenuX.value = e.clientX
+  contextMenuY.value = e.clientY
+  contextMenuVisible.value = true
 }
 
 // 获取文件图标组件

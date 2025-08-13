@@ -15,6 +15,14 @@ const selectedFile = ref<string>('')
 const fileDiff = ref<string>('')
 const isLoadingDiff = ref(false)
 
+// Tooltip相关状态
+const tooltipVisible = ref(false)
+const tooltipCommit = ref<any>(null)
+const tooltipPosition = ref({ x: 0, y: 0 })
+const tooltipTimer = ref<any>(null)
+const isMouseInTooltip = ref(false)
+const hideTooltipTimer = ref<any>(null)
+
 // 提供选中的提交给其他组件
 provide('selectedCommit', selectedCommit)
 
@@ -195,8 +203,129 @@ const getTags = (refs: string[]) => {
   return refs.filter(ref => ref.startsWith('tag:')).map(ref => ref.replace('tag: ', ''))
 }
 
+// 显示tooltip
+const showTooltip = (commit: any, event: MouseEvent) => {
+  // 清除之前的定时器
+  if (tooltipTimer.value) {
+    clearTimeout(tooltipTimer.value)
+  }
+  if (hideTooltipTimer.value) {
+    clearTimeout(hideTooltipTimer.value)
+    hideTooltipTimer.value = null
+  }
+  
+  // 延迟显示tooltip
+  tooltipTimer.value = setTimeout(() => {
+    tooltipCommit.value = commit
+    tooltipPosition.value = {
+      x: event.clientX,
+      y: event.clientY
+    }
+    tooltipVisible.value = true
+  }, 500) // 500ms延迟
+}
+
+// 隐藏tooltip
+const hideTooltip = () => {
+  if (tooltipTimer.value) {
+    clearTimeout(tooltipTimer.value)
+    tooltipTimer.value = null
+  }
+  
+  // 延迟隐藏，给鼠标移到tooltip的时间
+  if (hideTooltipTimer.value) {
+    clearTimeout(hideTooltipTimer.value)
+  }
+  
+  hideTooltipTimer.value = setTimeout(() => {
+    if (!isMouseInTooltip.value) {
+      tooltipVisible.value = false
+      tooltipCommit.value = null
+    }
+  }, 100) // 100ms延迟
+}
+
+// 鼠标进入tooltip
+const tooltipMouseEnter = () => {
+  isMouseInTooltip.value = true
+  if (hideTooltipTimer.value) {
+    clearTimeout(hideTooltipTimer.value)
+    hideTooltipTimer.value = null
+  }
+}
+
+// 鼠标离开tooltip
+const tooltipMouseLeave = () => {
+  isMouseInTooltip.value = false
+  hideTooltip()
+}
+
+// 复制文本到剪贴板
+const copyToClipboard = (text: string, event?: MouseEvent) => {
+  if (event) {
+    event.stopPropagation()
+  }
+  navigator.clipboard.writeText(text)
+}
+
+// 处理图形组件的悬浮事件
+const handleGraphHover = (commit: any, event: { x: number, y: number }) => {
+  if (tooltipTimer.value) {
+    clearTimeout(tooltipTimer.value)
+  }
+  
+  tooltipTimer.value = setTimeout(() => {
+    tooltipCommit.value = commit
+    tooltipPosition.value = {
+      x: event.x,
+      y: event.y
+    }
+    tooltipVisible.value = true
+  }, 500)
+}
+
+// 处理图形组件的离开事件
+const handleGraphLeave = () => {
+  hideTooltip()
+}
+
 // 计算属性
 const commits = computed(() => gitStore.commitsWithGraph || [])
+
+// 计算tooltip位置，避免超出视窗
+const tooltipStyle = computed(() => {
+  if (!tooltipVisible.value || !tooltipCommit.value) {
+    return {}
+  }
+  
+  let left = tooltipPosition.value.x + 10
+  let top = tooltipPosition.value.y
+  
+  // 假设tooltip宽度约400px，高度约300px
+  const tooltipWidth = 400
+  const tooltipHeight = 300
+  
+  // 检查右边界
+  if (left + tooltipWidth > window.innerWidth) {
+    left = tooltipPosition.value.x - tooltipWidth - 10
+  }
+  
+  // 检查下边界
+  if (top + tooltipHeight/2 > window.innerHeight) {
+    top = window.innerHeight - tooltipHeight - 10
+  }
+  
+  // 检查上边界
+  if (top - tooltipHeight/2 < 0) {
+    top = 10
+  }
+  
+  return {
+    left: left + 'px',
+    top: top + 'px',
+    transform: top === 10 || top === window.innerHeight - tooltipHeight - 10 ? 'none' : 'translateY(-50%)'
+  }
+})
 
 onMounted(() => {
   loadHistory()
@@ -245,6 +374,8 @@ onMounted(() => {
               :selected-commit="selectedCommit"
               :width="80"
               @select="selectCommit"
+              @hover="handleGraphHover"
+              @leave="handleGraphLeave"
             />
           </div>
           
@@ -282,7 +413,11 @@ onMounted(() => {
                 </div>
                 
                 <!-- 提交消息 -->
-                <span class="commit-message">{{ commit.message }}</span>
+                <span 
+                  class="commit-message"
+                  @mouseenter="showTooltip(commit, $event)"
+                  @mouseleave="hideTooltip"
+                >{{ commit.message }}</span>
                 
                 <!-- 作者 -->
                 <span class="commit-author">{{ commit.author }}</span>
@@ -344,6 +479,8 @@ onMounted(() => {
                   :selected-commit="selectedCommit"
                   :width="80"
                   @select="selectCommit"
+                  @hover="handleGraphHover"
+                  @leave="handleGraphLeave"
                 />
               </div>
               
@@ -381,7 +518,11 @@ onMounted(() => {
                     </div>
                     
                     <!-- 提交消息 -->
-                    <span class="commit-message">{{ commit.message }}</span>
+                    <span 
+                      class="commit-message"
+                      @mouseenter="showTooltip(commit, $event)"
+                      @mouseleave="hideTooltip"
+                    >{{ commit.message }}</span>
                     
                     <!-- 作者 -->
                     <span class="commit-author">{{ commit.author }}</span>
@@ -517,6 +658,77 @@ onMounted(() => {
         </div>
       </template>
     </ResizableVerticalLayout>
+    
+    <!-- Tooltip组件 -->
+    <Teleport to="body">
+      <div 
+        v-if="tooltipVisible && tooltipCommit"
+        class="commit-tooltip"
+        :style="tooltipStyle"
+        @mouseenter="tooltipMouseEnter"
+        @mouseleave="tooltipMouseLeave"
+      >
+        <div class="tooltip-content">
+          <!-- 提交哈希 -->
+          <div class="tooltip-row">
+            <span class="tooltip-label">提交:</span>
+            <span 
+              class="tooltip-value hash clickable"
+              @click="copyToClipboard(tooltipCommit.hash, $event)"
+              title="点击复制"
+            >{{ tooltipCommit.hash }}</span>
+          </div>
+          
+          <!-- 分支和标签 -->
+          <div v-if="tooltipCommit.refs && tooltipCommit.refs.length > 0" class="tooltip-row">
+            <span class="tooltip-label">引用:</span>
+            <div class="tooltip-refs">
+              <span 
+                v-for="ref in tooltipCommit.refs" 
+                :key="ref"
+                class="tooltip-ref"
+                :class="{ 'tag': ref.startsWith('tag:') }"
+              >
+                {{ ref }}
+              </span>
+            </div>
+          </div>
+          
+          <!-- 作者 -->
+          <div class="tooltip-row">
+            <span class="tooltip-label">作者:</span>
+            <span class="tooltip-value">{{ tooltipCommit.author }} &lt;{{ tooltipCommit.email }}&gt;</span>
+          </div>
+          
+          <!-- 日期 -->
+          <div class="tooltip-row">
+            <span class="tooltip-label">日期:</span>
+            <span class="tooltip-value">{{ tooltipCommit.date }}</span>
+          </div>
+          
+          <!-- 父提交 -->
+          <div v-if="tooltipCommit.parents && tooltipCommit.parents.length > 0" class="tooltip-row">
+            <span class="tooltip-label">父提交:</span>
+            <div class="tooltip-parents">
+              <span 
+                v-for="parent in tooltipCommit.parents" 
+                :key="parent"
+                class="tooltip-parent clickable"
+                @click="copyToClipboard(parent, $event)"
+                :title="`${parent} (点击复制)`"
+              >
+                {{ parent.substring(0, 7) }}
+              </span>
+            </div>
+          </div>
+          
+          <!-- 提交消息 -->
+          <div class="tooltip-message">
+            {{ tooltipCommit.message }}
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -644,19 +856,17 @@ onMounted(() => {
 
 .commit-list {
   display: flex;
-  height: 100%;
+  min-height: min-content;
 }
 
 .graph-column {
   width: 80px;
   flex-shrink: 0;
   border-right: 1px solid #2d2d30;
-  overflow-y: hidden;
 }
 
 .commits-column {
   flex: 1;
-  overflow-y: auto;
 }
 
 .commit-item {
@@ -951,6 +1161,135 @@ onMounted(() => {
 .diff-content {
   flex: 1;
   overflow: hidden;
+}
+
+/* Tooltip样式 */
+.commit-tooltip {
+  position: fixed;
+  z-index: 10000;
+  animation: fadeIn 0.2s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.tooltip-content {
+  background: #2d2d30;
+  border: 1px solid #464647;
+  border-radius: 6px;
+  padding: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  max-width: 500px;
+  min-width: 300px;
+  font-size: 12px;
+  color: #cccccc;
+  user-select: text;
+}
+
+.tooltip-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+  align-items: flex-start;
+}
+
+.tooltip-row:last-of-type {
+  margin-bottom: 0;
+}
+
+.tooltip-label {
+  color: #969696;
+  font-weight: 600;
+  min-width: 60px;
+  flex-shrink: 0;
+}
+
+.tooltip-value {
+  color: #cccccc;
+  word-break: break-all;
+}
+
+.tooltip-value.hash {
+  font-family: monospace;
+  font-size: 11px;
+  color: #58a6ff;
+}
+
+.tooltip-refs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.tooltip-ref {
+  padding: 2px 6px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 600;
+  background: rgba(0, 122, 204, 0.2);
+  color: #58a6ff;
+  border: 1px solid rgba(0, 122, 204, 0.4);
+}
+
+.tooltip-ref.tag {
+  background: rgba(163, 113, 247, 0.2);
+  color: #a371f7;
+  border: 1px solid rgba(163, 113, 247, 0.4);
+}
+
+.tooltip-parents {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.tooltip-parent {
+  font-family: monospace;
+  font-size: 11px;
+  color: #58a6ff;
+  padding: 2px 4px;
+  background: rgba(0, 122, 204, 0.1);
+  border-radius: 3px;
+}
+
+.tooltip-message {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #3e3e42;
+  color: #cccccc;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  user-select: text;
+}
+
+.clickable {
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.clickable:hover {
+  opacity: 0.8;
+  text-decoration: underline;
+}
+
+.tooltip-value.hash.clickable:hover {
+  background: rgba(88, 166, 255, 0.1);
+  padding: 2px 4px;
+  margin: -2px -4px;
+  border-radius: 3px;
+}
+
+.tooltip-parent.clickable:hover {
+  background: rgba(0, 122, 204, 0.2);
 }
 
 </style>

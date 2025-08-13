@@ -10,6 +10,8 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   select: [commit: GitCommitWithGraph]
+  hover: [commit: GitCommitWithGraph, event: { x: number, y: number }]
+  leave: []
 }>()
 
 const canvas = ref<HTMLCanvasElement>()
@@ -151,6 +153,9 @@ const draw = () => {
   })
 }
 
+// 当前悬浮的提交
+const hoveredCommit = ref<GitCommitWithGraph | null>(null)
+
 // 处理点击事件
 const handleClick = (event: MouseEvent) => {
   if (!canvas.value) return
@@ -171,6 +176,52 @@ const handleClick = (event: MouseEvent) => {
       emit('select', commit)
       break
     }
+  }
+}
+
+// 处理鼠标移动事件
+const handleMouseMove = (event: MouseEvent) => {
+  if (!canvas.value) return
+  
+  const rect = canvas.value.getBoundingClientRect()
+  const x = event.clientX - rect.left
+  const y = event.clientY - rect.top
+  
+  // 查找悬浮的提交
+  let foundCommit: GitCommitWithGraph | null = null
+  for (let i = 0; i < props.commits.length; i++) {
+    const commit = props.commits[i]
+    const branchIndex = branchMap.value.get(commit.hash) || 0
+    const commitX = config.leftPadding + branchIndex * config.branchSpacing
+    const commitY = config.topPadding + i * config.commitSpacing
+    
+    const distance = Math.sqrt((x - commitX) ** 2 + (y - commitY) ** 2)
+    if (distance <= config.commitRadius + 4) {
+      foundCommit = commit
+      break
+    }
+  }
+  
+  // 如果悬浮状态改变
+  if (foundCommit !== hoveredCommit.value) {
+    if (foundCommit) {
+      hoveredCommit.value = foundCommit
+      emit('hover', foundCommit, {
+        x: event.clientX,
+        y: event.clientY
+      })
+    } else if (hoveredCommit.value) {
+      hoveredCommit.value = null
+      emit('leave')
+    }
+  }
+}
+
+// 处理鼠标离开事件
+const handleMouseLeave = () => {
+  if (hoveredCommit.value) {
+    hoveredCommit.value = null
+    emit('leave')
   }
 }
 
@@ -197,6 +248,8 @@ onMounted(() => {
       ref="canvas"
       :style="{ height: containerHeight + 'px' }"
       @click="handleClick"
+      @mousemove="handleMouseMove"
+      @mouseleave="handleMouseLeave"
     />
   </div>
 </template>

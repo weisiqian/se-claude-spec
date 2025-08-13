@@ -6,8 +6,10 @@
     <div 
       class="resize-handle" 
       @mousedown="startResize"
+      @dblclick="handleDoubleClick"
       :class="{ 'resizing': isResizing }"
       :style="{ width: `${dividerWidth}px` }"
+      title="拖动调整宽度，双击重置"
     >
       <div class="resize-line"></div>
     </div>
@@ -27,11 +29,11 @@ const props = defineProps({
   },
   minSideWidth: {
     type: Number,
-    default: 300
+    default: 50  // 降低最小宽度，仅防止完全消失
   },
   maxSideWidth: {
     type: Number,
-    default: 800
+    default: -1  // -1 表示无限制
   },
   storageKey: {
     type: String,
@@ -40,6 +42,10 @@ const props = defineProps({
   dividerWidth: {
     type: Number,
     default: 6
+  },
+  defaultWidth: {
+    type: Number,
+    default: 400  // 双击重置时的默认宽度
   }
 })
 
@@ -71,10 +77,33 @@ const handleMouseMove = (e: MouseEvent) => {
   const diff = startX.value - e.clientX
   const newWidth = startWidth.value + diff
   
-  // 限制宽度范围
-  if (newWidth >= props.minSideWidth && newWidth <= props.maxSideWidth) {
-    sidePanelPixelWidth.value = newWidth
+  // 获取容器宽度
+  const container = document.querySelector('.resizable-panel-container') as HTMLElement
+  const containerWidth = container ? container.offsetWidth : window.innerWidth
+  
+  // 计算左侧面板的最小宽度（防止右侧面板完全消失）
+  const minMainWidth = 50
+  const maxSideWidth = containerWidth - minMainWidth - props.dividerWidth
+  
+  // 智能限制宽度范围
+  let finalWidth = newWidth
+  
+  // 最小宽度限制
+  if (finalWidth < props.minSideWidth) {
+    finalWidth = props.minSideWidth
   }
+  
+  // 最大宽度限制（如果设置了且不是-1）
+  if (props.maxSideWidth > 0 && finalWidth > props.maxSideWidth) {
+    finalWidth = props.maxSideWidth
+  }
+  
+  // 容器宽度限制
+  if (finalWidth > maxSideWidth) {
+    finalWidth = maxSideWidth
+  }
+  
+  sidePanelPixelWidth.value = finalWidth
 }
 
 const stopResize = () => {
@@ -90,20 +119,51 @@ const stopResize = () => {
   localStorage.setItem(props.storageKey, String(sidePanelPixelWidth.value))
 }
 
+// 双击重置到默认宽度
+const handleDoubleClick = () => {
+  sidePanelPixelWidth.value = props.defaultWidth || props.initialSideWidth
+  localStorage.setItem(props.storageKey, String(sidePanelPixelWidth.value))
+}
+
+// 处理窗口大小调整
+const handleWindowResize = () => {
+  const container = document.querySelector('.resizable-panel-container') as HTMLElement
+  if (!container) return
+  
+  const containerWidth = container.offsetWidth
+  const minMainWidth = 50
+  const maxSideWidth = containerWidth - minMainWidth - props.dividerWidth
+  
+  // 如果当前宽度超过了容器允许的最大宽度，调整它
+  if (sidePanelPixelWidth.value > maxSideWidth) {
+    sidePanelPixelWidth.value = maxSideWidth
+  }
+}
+
 onMounted(() => {
   // 从 localStorage 恢复宽度
   const savedWidth = localStorage.getItem(props.storageKey)
   if (savedWidth) {
     const width = parseInt(savedWidth)
-    if (width >= props.minSideWidth && width <= props.maxSideWidth) {
-      sidePanelPixelWidth.value = width
+    // 只检查最小宽度
+    if (width >= props.minSideWidth) {
+      // 如果有最大宽度限制且不是-1，则检查最大宽度
+      if (props.maxSideWidth > 0 && width > props.maxSideWidth) {
+        sidePanelPixelWidth.value = props.maxSideWidth
+      } else {
+        sidePanelPixelWidth.value = width
+      }
     }
   }
+  
+  // 监听窗口大小调整
+  window.addEventListener('resize', handleWindowResize)
 })
 
 onUnmounted(() => {
   document.removeEventListener('mousemove', handleMouseMove)
   document.removeEventListener('mouseup', stopResize)
+  window.removeEventListener('resize', handleWindowResize)
 })
 </script>
 

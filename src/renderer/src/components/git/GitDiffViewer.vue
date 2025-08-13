@@ -8,7 +8,7 @@ const props = defineProps<{
 }>()
 
 // 视图模式：unified（统一） 或 side-by-side（并排）
-const viewMode = ref<'unified' | 'side-by-side'>('unified')
+const viewMode = ref<'unified' | 'side-by-side'>('side-by-side')
 
 // 从 localStorage 读取用户偏好
 onMounted(() => {

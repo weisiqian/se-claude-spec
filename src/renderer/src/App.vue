@@ -694,8 +694,9 @@ onUnmounted(() => {
       <ResizablePanel 
         v-else-if="appMode === 'spc' && showForm"
         :initial-side-width="600"
-        :min-side-width="400"
-        :max-side-width="800"
+        :min-side-width="100"
+        :max-side-width="-1"
+        :default-width="600"
       >
         <template #main>
           <StepForm 

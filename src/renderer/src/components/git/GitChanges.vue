@@ -4,7 +4,7 @@ import { useGitStore } from '../../stores/gitStore'
 import ConfirmDialog from '../common/ConfirmDialog.vue'
 
 const emit = defineEmits<{
-  openDiff: [file: string]
+  openDiff: [file: string, isStaged: boolean]
 }>()
 
 const gitStore = useGitStore()
@@ -111,14 +111,39 @@ const modifiedFiles = computed(() => gitStore.status?.modified || [])
 const addedFiles = computed(() => gitStore.status?.added || [])
 const deletedFiles = computed(() => gitStore.status?.deleted || [])
 const conflictedFiles = computed(() => gitStore.status?.conflicted || [])
+const untrackedFiles = computed(() => gitStore.status?.untracked || [])
 
 const allChangedFiles = computed(() => {
   const files = new Map<string, string>()
+  const stagedSet = new Set(stagedFiles.value)
   
-  modifiedFiles.value.forEach(f => files.set(f, 'M'))
-  addedFiles.value.forEach(f => files.set(f, 'A'))
-  deletedFiles.value.forEach(f => files.set(f, 'D'))
-  conflictedFiles.value.forEach(f => files.set(f, 'C'))
+  // 只添加未暂存的文件
+  modifiedFiles.value.forEach(f => {
+    if (!stagedSet.has(f)) {
+      files.set(f, 'M')
+    }
+  })
+  
+  addedFiles.value.forEach(f => {
+    if (!stagedSet.has(f)) {
+      files.set(f, 'A')
+    }
+  })
+  
+  deletedFiles.value.forEach(f => {
+    if (!stagedSet.has(f)) {
+      files.set(f, 'D')
+    }
+  })
+  
+  conflictedFiles.value.forEach(f => {
+    if (!stagedSet.has(f)) {
+      files.set(f, 'C')
+    }
+  })
+  
+  // 添加未跟踪文件
+  untrackedFiles.value.forEach(f => files.set(f, 'U'))
   
   return Array.from(files.entries()).map(([file, status]) => ({ file, status }))
 })
@@ -156,7 +181,7 @@ const allChangedFiles = computed(() => {
           :key="file"
           class="file-item"
         >
-          <div class="file-info" @click="emit('openDiff', file)">
+          <div class="file-info" @click="emit('openDiff', file, true)">
             <span 
               class="file-status"
               :style="{ color: getFileIcon('M').color }"
@@ -222,7 +247,7 @@ const allChangedFiles = computed(() => {
           :key="file"
           class="file-item"
         >
-          <div class="file-info" @click="emit('openDiff', file)">
+          <div class="file-info" @click="emit('openDiff', file, false)">
             <span 
               class="file-status"
               :style="{ color: getFileIcon(status).color }"

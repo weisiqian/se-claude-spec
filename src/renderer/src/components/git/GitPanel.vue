@@ -8,10 +8,13 @@ import { useGitStore } from '../../stores/gitStore'
 const emit = defineEmits<{
   close: []
   openDiff: [file: string]
+  selectFile: [file: string, diff: string]
 }>()
 
 const gitStore = useGitStore()
 const isRefreshing = ref(false)
+const selectedFile = ref<string>('')
+const selectedFileDiff = ref<string>('')
 
 // 监听Git状态变化
 onMounted(() => {
@@ -40,6 +43,23 @@ const sync = async () => {
     await gitStore.sync()
   } catch (error: any) {
     console.error('同步失败:', error.message)
+  }
+}
+
+// 处理文件点击，获取diff
+const handleFileClick = async (file: string, isStaged: boolean) => {
+  try {
+    selectedFile.value = file
+    // 根据文件状态获取对应的diff
+    const diff = isStaged 
+      ? await gitStore.getStagedDiff(file)  // 暂存文件使用getStagedDiff
+      : await gitStore.getDiff(file)         // 未暂存文件使用getDiff
+    selectedFileDiff.value = diff
+    // 发送事件给父组件
+    emit('selectFile', file, diff)
+  } catch (error: any) {
+    console.error('获取文件diff失败:', error.message)
+    selectedFileDiff.value = ''
   }
 }
 
@@ -116,7 +136,7 @@ const isRepoInitialized = computed(() => gitStore.isInitialized)
         <GitCommit />
         
         <!-- 文件更改列表 -->
-        <GitChanges @open-diff="emit('openDiff', $event)" />
+        <GitChanges @open-diff="handleFileClick" />
       </div>
     </div>
   </div>

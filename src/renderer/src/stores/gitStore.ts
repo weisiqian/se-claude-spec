@@ -8,6 +8,7 @@ export interface GitStatus {
   renamed: { from: string; to: string }[]
   conflicted: string[]
   staged: string[]
+  untracked: string[]
   current: string | null
   tracking: string | null
   ahead: number

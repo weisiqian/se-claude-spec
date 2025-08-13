@@ -5,7 +5,26 @@
       class="top-panel" 
       :style="{ height: topHeight + 'px' }"
     >
+      <!-- 有选中文件时显示diff -->
+      <div v-if="props.selectedFile" class="diff-viewer-container">
+        <div class="diff-header">
+          <span class="diff-title">{{ props.selectedFile }}</span>
+          <button class="close-button" @click="emit('clear-selection')">
+            <svg viewBox="0 0 16 16" fill="currentColor">
+              <path d="M3.72 3.72a.75.75 0 0 1 1.06 0L8 6.94l3.22-3.22a.75.75 0 1 1 1.06 1.06L9.06 8l3.22 3.22a.75.75 0 1 1-1.06 1.06L8 9.06l-3.22 3.22a.75.75 0 0 1-1.06-1.06L6.94 8 3.72 4.78a.75.75 0 0 1 0-1.06z"/>
+            </svg>
+          </button>
+        </div>
+        <div class="diff-content">
+          <GitDiffViewer 
+            :diff="props.selectedFileDiff || ''"
+            :file-path="props.selectedFile"
+          />
+        </div>
+      </div>
+      <!-- 没有选中文件时显示历史记录 -->
       <GitHistory 
+        v-else
         @diff-view-toggle="handleDiffViewToggle"
       />
     </div>
@@ -37,16 +56,20 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import GitHistory from './git/GitHistory.vue'
+import GitDiffViewer from './git/GitDiffViewer.vue'
 import TerminalPanel from './TerminalPanel.vue'
 
 const props = defineProps<{
   projectPath?: string | null
   isDark?: boolean
+  selectedFile?: string
+  selectedFileDiff?: string
 }>()
 
 const emit = defineEmits<{
   'terminals-update': [terminals: any[]]
   'active-terminal-update': [activeTerminalId: string]
+  'clear-selection': []
 }>()
 
 // 面板高度管理
@@ -200,5 +223,55 @@ onUnmounted(() => {
   flex: 1;
   overflow: hidden;
   background: #1e1e1e;
+}
+
+.diff-viewer-container {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: #181818;
+}
+
+.diff-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: #212121;
+  border-bottom: 1px solid #2d2d30;
+}
+
+.diff-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #cccccc;
+}
+
+.close-button {
+  background: transparent;
+  border: none;
+  color: #969696;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.close-button:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: #cccccc;
+}
+
+.close-button svg {
+  width: 16px;
+  height: 16px;
+}
+
+.diff-content {
+  flex: 1;
+  overflow: hidden;
 }
 </style>

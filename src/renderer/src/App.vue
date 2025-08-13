@@ -49,6 +49,8 @@ const selectedFile = ref<string | null>(null)
 const selectedFileMode = ref<'preview' | 'open'>('preview')
 const showFileExplorer = ref(false)
 const showGitPanel = ref(false)
+const gitSelectedFile = ref<string>('')
+const gitSelectedFileDiff = ref<string>('')
 
 // 提供主题状态给子组件
 provide('isDark', isDark)
@@ -222,6 +224,18 @@ const handleFileSelect = (filePath: string, mode: 'preview' | 'open' = 'preview'
   // open模式：添加到标签并切换到该文件
   selectedFile.value = filePath
   selectedFileMode.value = mode
+}
+
+// 处理Git文件选择（显示diff）
+const handleGitFileSelect = (file: string, diff: string) => {
+  gitSelectedFile.value = file
+  gitSelectedFileDiff.value = diff
+}
+
+// 清除Git文件选择
+const clearGitFileSelection = () => {
+  gitSelectedFile.value = ''
+  gitSelectedFileDiff.value = ''
 }
 
 const handlePanelItemSelect = (item: any) => {
@@ -583,6 +597,7 @@ onUnmounted(() => {
             v-else-if="showGitPanel && activePanel === 'git'"
             @close="() => { showGitPanel = false; activePanel = '' }"
             @open-diff="handleFileSelect($event, 'open')"
+            @select-file="handleGitFileSelect"
           />
           <RequirementCreator
             v-if="showRequirementCreator && activePanel === 'requirement'"
@@ -677,6 +692,9 @@ onUnmounted(() => {
             v-else-if="activePanel === 'git'"
             :project-path="projectPath"
             :is-dark="isDark"
+            :selected-file="gitSelectedFile"
+            :selected-file-diff="gitSelectedFileDiff"
+            @clear-selection="clearGitFileSelection"
             @terminals-update="terminals = $event"
             @active-terminal-update="activeTerminalId = $event"
           />

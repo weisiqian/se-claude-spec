@@ -116,6 +116,7 @@ export class GitService {
         renamed: status.renamed.map(r => ({ from: r.from, to: r.to })),
         conflicted: status.conflicted,
         staged: status.staged,
+        untracked: status.not_added || [],
         current: status.current,
         tracking: status.tracking,
         ahead: status.ahead,
